@@ -1,0 +1,85 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Entropi API",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#6366F1",
+    "light": "#818CF8",
+    "dark": "#4F46E5",
+    "anchors": {
+      "from": "#6366F1",
+      "to": "#818CF8"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/yourusername/entropi-api"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Dashboard",
+    "url": "https://app.entropi.com"
+  },
+  "anchors": [
+    {
+      "name": "Documentation",
+      "icon": "book-open-cover",
+      "url": "https://docs.entropi.com"
+    },
+    {
+      "name": "API Reference",
+      "icon": "code",
+      "url": "https://docs.entropi.com/api-reference"
+    },
+    {
+      "name": "Support",
+      "icon": "headset",
+      "url": "https://support.entropi.com"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Get Started",
+      "pages": [
+        "introduction",
+        "setup/installation",
+        "setup/configuration"
+      ]
+    },
+    {
+      "group": "Architecture",
+      "pages": [
+        "architecture",
+        "database"
+      ]
+    },
+    {
+      "group": "Services",
+      "pages": [
+        "services/overview",
+        "services/image-service",
+        "services/ocr-service",
+        "services/crop-service",
+        "services/search-enrichment"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/analyze",
+        "api-reference/authentication"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "twitter": "https://twitter.com/entropi",
+    "github": "https://github.com/yourusername/entropi-api",
+    "linkedin": "https://www.linkedin.com/company/entropi"
+  }
+}
+

@@ -1,0 +1,299 @@
+---
+title: Configuration
+description: "Complete guide to configuring Entropi API environment variables and settings."
+---
+
+## Environment Variables
+
+Entropi API uses a `.env` file for configuration. Create this file in the `core-palme` directory.
+
+## Required Variables
+
+### Database Configuration
+
+<ParamField body="DATABASE_URL" type="string" required>
+  PostgreSQL connection string
+</ParamField>
+
+**Format**:
+```
+postgresql://username:password@localhost:5432/database_name
+```
+
+**Example**:
+```bash
+DATABASE_URL=postgresql://postgres:password@localhost:5432/palme
+```
+
+<CodeGroup>
+```bash Local PostgreSQL
+DATABASE_URL=postgresql://postgres:password@localhost:5432/palme
+```
+
+```bash Docker PostgreSQL
+DATABASE_URL=postgresql://postgres:password@host.docker.internal:5432/palme
+```
+
+```bash Remote PostgreSQL
+DATABASE_URL=postgresql://user:pass@db.example.com:5432/palme
+```
+</CodeGroup>
+
+### AI Service API Keys
+
+<ParamField body="OCR_API_KEY" type="string" required>
+  Groq API key for OCR service
+</ParamField>
+
+Get from: [Groq Console](https://console.groq.com)
+
+```bash
+OCR_API_KEY=gsk_your_groq_api_key_here
+```
+
+<ParamField body="OBJDETECT_API_KEY" type="string" required>
+  Gemini API key for crop service (bounding box detection)
+</ParamField>
+
+Get from: [Google AI Studio](https://makersuite.google.com/app/apikey)
+
+```bash
+OBJDETECT_API_KEY=your_gemini_api_key_here
+```
+
+<ParamField body="GEMINI_API_KEY" type="string" required>
+  Gemini API key for search enrichment service
+</ParamField>
+
+```bash
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+<Tip>
+  You can use the same Gemini API key for both `OBJDETECT_API_KEY` and `GEMINI_API_KEY`.
+</Tip>
+
+### Authentication (JWT)
+
+<ParamField body="SECRET_KEY" type="string" required>
+  Secret key for JWT token signing
+</ParamField>
+
+Generate a secure key:
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+```bash
+SECRET_KEY=your-secret-key-here-min-32-characters
+```
+
+<ParamField body="ALGORITHM" type="string">
+  JWT algorithm (default: HS256)
+</ParamField>
+
+```bash
+ALGORITHM=HS256
+```
+
+<ParamField body="ACCESS_TOKEN_EXPIRE_MINUTES" type="integer">
+  Token expiration time in minutes (default: 10080 = 7 days)
+</ParamField>
+
+```bash
+ACCESS_TOKEN_EXPIRE_MINUTES=10080
+```
+
+## Complete .env Example
+
+```bash
+# Database
+DATABASE_URL=postgresql://postgres:password@localhost:5432/palme
+
+# Groq API (OCR Service)
+OCR_API_KEY=gsk_your_groq_api_key_here
+
+# Gemini API (Crop & Search Services)
+OBJDETECT_API_KEY=your_gemini_api_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# JWT Authentication
+SECRET_KEY=your-secret-key-here-min-32-characters
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=10080
+```
+
+## Optional Configuration
+
+### Logging
+
+<ParamField body="LOG_LEVEL" type="string">
+  Logging level (DEBUG, INFO, WARNING, ERROR)
+</ParamField>
+
+```bash
+LOG_LEVEL=INFO
+```
+
+### Server Configuration
+
+<ParamField body="HOST" type="string">
+  Server host (default: 0.0.0.0)
+</ParamField>
+
+```bash
+HOST=0.0.0.0
+```
+
+<ParamField body="PORT" type="integer">
+  Server port (default: 8000)
+</ParamField>
+
+```bash
+PORT=8000
+```
+
+### CORS (if needed)
+
+<ParamField body="CORS_ORIGINS" type="string">
+  Comma-separated list of allowed origins
+</ParamField>
+
+```bash
+CORS_ORIGINS=http://localhost:3000,https://app.example.com
+```
+
+## Environment-Specific Configs
+
+<CardGroup cols={2}>
+  <Card title="Development" icon="code">
+    Use local database and API keys  
+    Enable debug mode
+  </Card>
+  <Card title="Production" icon="server">
+    Use production database  
+    Secure API keys  
+    Disable debug mode
+  </Card>
+</CardGroup>
+
+### Development .env
+
+```bash
+# Development
+DATABASE_URL=postgresql://postgres:devpass@localhost:5432/palme_dev
+LOG_LEVEL=DEBUG
+```
+
+### Production .env
+
+```bash
+# Production
+DATABASE_URL=postgresql://user:securepass@prod-db.example.com:5432/palme
+LOG_LEVEL=WARNING
+SECRET_KEY=very-secure-production-key-here
+```
+
+## Security Best Practices
+
+<Warning>
+  **Never commit `.env` files to version control!**
+  
+  Add to `.gitignore`:
+  ```
+  .env
+  .env.local
+  .env.*.local
+  ```
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="✅ Do" icon="check-circle">
+    - Use strong, unique SECRET_KEY  
+    - Rotate API keys regularly  
+    - Use environment variables in production  
+    - Restrict database access
+  </Card>
+  <Card title="❌ Don't" icon="x-circle">
+    - Commit .env files  
+    - Share API keys  
+    - Use default SECRET_KEY  
+    - Expose database publicly
+  </Card>
+</CardGroup>
+
+## Verifying Configuration
+
+Test your configuration:
+
+```bash
+# Check if all required variables are set
+python -c "
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+required = [
+    'DATABASE_URL',
+    'OCR_API_KEY',
+    'OBJDETECT_API_KEY',
+    'GEMINI_API_KEY',
+    'SECRET_KEY'
+]
+
+missing = [var for var in required if not os.getenv(var)]
+if missing:
+    print(f'❌ Missing: {missing}')
+else:
+    print('✅ All required variables set')
+"
+```
+
+## Configuration Files
+
+<AccordionGroup>
+  <Accordion title=".env">
+    Main configuration file (not versioned)
+  </Accordion>
+
+  <Accordion title=".env.example">
+    Template file (versioned) showing required variables
+  </Accordion>
+
+  <Accordion title="app/config.py">
+    Python configuration loader
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Variables Not Loading">
+    Make sure:
+    - `.env` file is in `core-palme` directory
+    - `python-dotenv` is installed
+    - File has no syntax errors
+  </Accordion>
+
+  <Accordion title="Database Connection Failed">
+    Check:
+    - `DATABASE_URL` format is correct
+    - PostgreSQL is running
+    - Credentials are correct
+    - Database exists
+  </Accordion>
+
+  <Accordion title="API Key Errors">
+    Verify:
+    - Keys are correct (no extra spaces)
+    - Keys are not expired
+    - API quotas are not exceeded
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+- Complete the [Installation](/setup/installation) if you haven't
+- Test the [API Endpoints](/api-reference/analyze)
+- Review [Security Best Practices](/setup/configuration#security-best-practices)
+

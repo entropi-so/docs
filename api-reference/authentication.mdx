@@ -1,0 +1,261 @@
+---
+title: Authentication
+description: "JWT-based authentication for Entropi API endpoints."
+---
+
+## Overview
+
+Entropi API uses **JWT (JSON Web Tokens)** for authentication. Users must register and login to receive an access token, which is then used to authenticate API requests.
+
+<Note>
+  Currently, the `/api/v1/pipeline/analyze` endpoint is in **TEST MODE** and does not require authentication. This will change in future versions.
+</Note>
+
+## Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant API
+    participant Database
+
+    User->>API: POST /auth/register
+    API->>Database: Create user
+    Database-->>API: User created
+    API-->>User: 201 Created
+
+    User->>API: POST /auth/login
+    API->>Database: Verify credentials
+    Database-->>API: User verified
+    API-->>User: 200 OK (access_token)
+
+    User->>API: GET /api/v1/products (with token)
+    API->>API: Verify JWT
+    API-->>User: 200 OK (products)
+```
+
+## Register
+
+<ParamField body="POST /auth/register" type="endpoint">
+  Create a new user account
+</ParamField>
+
+### Request
+
+```json
+{
+  "username": "johndoe",
+  "email": "john@example.com",
+  "password": "securepassword123"
+}
+```
+
+<ParamField body="username" type="string" required>
+  Unique username
+</ParamField>
+<ParamField body="email" type="string" required>
+  Valid email address
+</ParamField>
+<ParamField body="password" type="string" required>
+  Password (min 8 characters, recommended)
+</ParamField>
+
+### Response (201 Created)
+
+```json
+{
+  "id": 1,
+  "username": "johndoe",
+  "email": "john@example.com",
+  "created_at": "2026-02-05T11:51:04.809415-08:00"
+}
+```
+
+### cURL Example
+
+```bash
+curl -X POST "http://localhost:8000/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "johndoe",
+    "email": "john@example.com",
+    "password": "securepassword123"
+  }'
+```
+
+## Login
+
+<ParamField body="POST /auth/login" type="endpoint">
+  Authenticate and receive access token
+</ParamField>
+
+### Request
+
+```json
+{
+  "username": "johndoe",
+  "password": "securepassword123"
+}
+```
+
+<ParamField body="username" type="string" required>
+  Username or email
+</ParamField>
+<ParamField body="password" type="string" required>
+  User password
+</ParamField>
+
+### Response (200 OK)
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer",
+  "expires_in": 604800
+}
+```
+
+<ParamField body="access_token" type="string">
+  JWT access token (use in Authorization header)
+</ParamField>
+<ParamField body="token_type" type="string">
+  Always "bearer"
+</ParamField>
+<ParamField body="expires_in" type="integer">
+  Token expiration time in seconds (default: 7 days)
+</ParamField>
+
+### cURL Example
+
+```bash
+curl -X POST "http://localhost:8000/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "johndoe",
+    "password": "securepassword123"
+  }'
+```
+
+## Using the Token
+
+Include the access token in the `Authorization` header:
+
+```http
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### Example Authenticated Request
+
+<CodeGroup>
+```bash cURL
+curl -X GET "http://localhost:8000/api/v1/products" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+```python Python
+import requests
+
+headers = {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+
+response = requests.get(
+    "http://localhost:8000/api/v1/products",
+    headers=headers
+)
+```
+
+```javascript JavaScript
+const response = await fetch('http://localhost:8000/api/v1/products', {
+  headers: {
+    'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+  }
+});
+```
+</CodeGroup>
+
+## Token Expiration
+
+<Warning>
+  Tokens expire after **7 days** (604800 seconds) by default. You must login again to get a new token.
+</Warning>
+
+The expiration time is configurable via `ACCESS_TOKEN_EXPIRE_MINUTES` in your `.env` file.
+
+## Error Responses
+
+### 400 Bad Request
+
+Invalid request data.
+
+```json
+{
+  "detail": "Username already exists"
+}
+```
+
+### 401 Unauthorized
+
+Invalid credentials or missing/invalid token.
+
+```json
+{
+  "detail": "Incorrect username or password"
+}
+```
+
+```json
+{
+  "detail": "Could not validate credentials"
+}
+```
+
+### 422 Unprocessable Entity
+
+Validation error.
+
+```json
+{
+  "detail": [
+    {
+      "loc": ["body", "email"],
+      "msg": "value is not a valid email address",
+      "type": "value_error.email"
+    }
+  ]
+}
+```
+
+## Password Security
+
+<CardGroup cols={2}>
+  <Card title="Hashing" icon="lock">
+    Passwords are hashed using **Argon2** before storage
+  </Card>
+  <Card title="Never Stored" icon="shield">
+    Plain text passwords are never stored in the database
+  </Card>
+</CardGroup>
+
+## Configuration
+
+Add to your `.env` file:
+
+```bash
+SECRET_KEY=your-secret-key-here
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=10080  # 7 days
+```
+
+<Tip>
+  Generate a secure secret key:
+  ```bash
+  python -c "import secrets; print(secrets.token_urlsafe(32))"
+  ```
+</Tip>
+
+## Next Steps
+
+- Check the [Setup Guide](/setup/configuration) for environment variables
+- Learn about [Protected Endpoints](/api-reference/analyze) (coming soon)
+

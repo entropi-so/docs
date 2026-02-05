@@ -1,0 +1,256 @@
+---
+title: Crop Service
+description: "Intelligently detect and crop product images from screenshots using Gemini 2.0 Flash bounding box detection."
+---
+
+## Overview
+
+The **Crop Service** uses AI vision to detect the main product in a screenshot and crop it, removing UI elements, logos, and other distractions. It uses Gemini 2.0 Flash with native bounding box detection.
+
+**File**: `app/services/image_crop_service.py`
+
+## Function
+
+<ParamField body="crop_product_image" type="async function">
+  Detects product bounding box and crops the image to focus on the product.
+</ParamField>
+
+```python
+async def crop_product_image(
+    base64_image: str,
+    ocr_context: Optional[Dict[str, Any]] = None,
+    padding_percent: float = 0.20
+) -> str
+```
+
+<ParamField body="base64_image" type="string" required>
+  Base64-encoded full screenshot
+</ParamField>
+<ParamField body="ocr_context" type="dict" optional>
+  OCR data (name, category, object_type) to help locate product
+</ParamField>
+<ParamField body="padding_percent" type="float" optional>
+  Padding around detected bbox (default: 20%)
+</ParamField>
+
+**Returns**: Base64-encoded cropped image (or original if detection fails)
+
+## How It Works
+
+<Steps>
+  <Step title="1. Bounding Box Detection">
+    Gemini 2.0 Flash analyzes the image and returns normalized coordinates (0-1000) for the product location.
+  </Step>
+
+  <Step title="2. Coordinate Conversion">
+    Normalized coordinates are converted to pixel coordinates based on image dimensions.
+  </Step>
+
+  <Step title="3. Validation">
+    Bounding box is validated to ensure it's within image bounds and has valid dimensions.
+  </Step>
+
+  <Step title="4. Cropping with Padding">
+    Image is cropped to the detected area with configurable padding (default 20%).
+  </Step>
+
+  <Step title="5. Fallback">
+    If detection fails, returns the original image unchanged.
+  </Step>
+</Steps>
+
+## Implementation Details
+
+### Bounding Box Detection
+
+```python
+async def _detect_product_bbox(
+    base64_image: str, 
+    ocr_context: Optional[Dict[str, Any]] = None
+) -> Optional[Tuple[int, int, int, int]]:
+    # Load image to get dimensions
+    image_bytes = base64.b64decode(base64_image)
+    image = Image.open(io.BytesIO(image_bytes))
+    img_width, img_height = image.size
+
+    # Use Gemini 2.0 Flash with native bbox support
+    model = genai.GenerativeModel("gemini-2.5-flash")
+    
+    # Build prompt with OCR context
+    object_type = "product"
+    if ocr_context:
+        object_type = ocr_context.get("object_type", "product")
+    
+    prompt = f"""Locate the {object_type} in this image.
+    Return ONLY a bounding box as JSON array: [ymin, xmin, ymax, xmax]
+    Coordinates are normalized 0-1000."""
+    
+    # Get bounding box (normalized 0-1000)
+    response = model.generate_content(
+        [prompt, image_part],
+        generation_config={
+            "response_mime_type": "application/json",
+            "temperature": 0
+        }
+    )
+    
+    # Convert normalized to pixels
+    ymin, xmin, ymax, xmax = json.loads(response.text)
+    x = int(xmin * img_width / 1000)
+    y = int(ymin * img_height / 1000)
+    width = int((xmax - xmin) * img_width / 1000)
+    height = int((ymax - ymin) * img_height / 1000)
+    
+    return (x, y, width, height)
+```
+
+### Cropping with Padding
+
+```python
+async def _crop_with_bbox(
+    base64_image: str, 
+    bbox: Tuple[int, int, int, int], 
+    padding_percent: float = 0.20
+) -> str:
+    image_bytes = base64.b64decode(base64_image)
+    image = Image.open(io.BytesIO(image_bytes))
+    
+    x, y, width, height = bbox
+    
+    # Add padding
+    pad_w = int(width * padding_percent)
+    pad_h = int(height * padding_percent)
+    
+    x1 = max(0, x - pad_w)
+    y1 = max(0, y - pad_h)
+    x2 = min(img_width, x + width + pad_w)
+    y2 = min(img_height, y + height + pad_h)
+    
+    # Crop and encode
+    cropped_image = image.crop((x1, y1, x2, y2))
+    output = io.BytesIO()
+    cropped_image.save(output, format="JPEG", quality=95)
+    
+    return base64.b64encode(output.getvalue()).decode("utf-8")
+```
+
+## Usage Example
+
+```python
+from app.services.image_crop_service import crop_product_image
+
+# With OCR context (recommended)
+cropped_image = await crop_product_image(
+    base64_image=base64_image,
+    ocr_context={
+        "name": "Leather Jacket",
+        "object_type": "jacket",
+        "category": "Fashion"
+    },
+    padding_percent=0.20
+)
+
+# Without OCR context
+cropped_image = await crop_product_image(base64_image)
+```
+
+## OCR Context Benefits
+
+Using OCR context helps the model:
+
+<CardGroup cols={2}>
+  <Card title="Focus on Product" icon="target">
+    Avoids cropping logos or UI elements
+  </Card>
+  <Card title="Better Accuracy" icon="check-circle">
+    Uses product name/type as hints
+  </Card>
+</CardGroup>
+
+Example: If OCR detects "sunglasses", the model will look for sunglasses instead of random objects.
+
+## Performance
+
+<CardGroup cols={2}>
+  <Card title="Average Time" icon="clock">
+    2-3 seconds per image
+  </Card>
+  <Card title="Success Rate" icon="check-circle">
+    90%+ (falls back gracefully)
+  </Card>
+  <Card title="Model" icon="brain">
+    Gemini 2.5 Flash
+  </Card>
+  <Card title="Padding" icon="expand">
+    Default 20% (configurable)
+  </Card>
+</CardGroup>
+
+## Configuration
+
+Add to your `.env` file:
+
+```bash
+OBJDETECT_API_KEY=your_gemini_api_key_here
+```
+
+Get your API key from: [Google AI Studio](https://makersuite.google.com/app/apikey)
+
+## Dependencies
+
+```txt
+google-generativeai>=0.3.0
+pillow>=10.0.0
+```
+
+Install with:
+```bash
+pip install google-generativeai pillow
+```
+
+## Error Handling
+
+<Warning>
+  The service implements **graceful degradation**:
+  - If detection fails → returns original image
+  - If bbox is invalid → returns original image
+  - If cropping fails → returns original image
+  
+  The pipeline continues even if cropping fails.
+</Warning>
+
+## Coordinate System
+
+Gemini returns normalized coordinates (0-1000):
+- `[0, 0]` = top-left corner
+- `[1000, 1000]` = bottom-right corner
+
+These are converted to pixel coordinates based on actual image dimensions.
+
+## Limitations
+
+<AccordionGroup>
+  <Accordion title="Multiple Products">
+    Currently detects only the main/primary product. Multiple products may confuse the model.
+  </Accordion>
+
+  <Accordion title="Complex Backgrounds">
+    Very cluttered backgrounds may reduce detection accuracy.
+  </Accordion>
+
+  <Accordion title="Small Products">
+    Very small products in large screenshots may be missed.
+  </Accordion>
+</AccordionGroup>
+
+## Future Improvements (V2)
+
+<Note>
+  V2 will use a custom trained model for bounding box detection, improving accuracy and speed.
+</Note>
+
+## Next Steps
+
+- Learn about [Search Enrichment](/services/search-enrichment) that uses cropped images
+- Check the [Architecture](/architecture) to see how services connect
+

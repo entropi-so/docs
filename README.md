@@ -1,43 +1,61 @@
-# Mintlify Starter Kit
+# Entropi API Documentation
 
-Use the starter kit to get your docs deployed and ready to customize.
+This directory contains the complete Mintlify documentation for Entropi API.
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
-
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
-
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
-
-## Development
-
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
+## Structure
 
 ```
-npm i -g mint
+docs/
+├── mint.json                    # Mintlify configuration
+├── introduction.mdx             # Project introduction
+├── architecture.mdx            # System architecture
+├── database.mdx                 # Database schema
+├── services/
+│   ├── overview.mdx            # Services overview
+│   ├── image-service.mdx       # Image conversion service
+│   ├── ocr-service.mdx         # OCR extraction service
+│   ├── crop-service.mdx        # Smart cropping service
+│   └── search-enrichment.mdx   # Search enrichment service
+├── api-reference/
+│   ├── analyze.mdx             # Main pipeline endpoint
+│   └── authentication.mdx      # Auth endpoints
+└── setup/
+    ├── installation.mdx        # Installation guide
+    └── configuration.mdx        # Configuration guide
 ```
 
-Run the following command at the root of your documentation, where your `docs.json` is located:
+## Deploying to Mintlify
 
-```
-mint dev
-```
+1. **Install Mintlify CLI**:
+   ```bash
+   npm i -g mintlify
+   ```
 
-View your local preview at `http://localhost:3000`.
+2. **Initialize Mintlify** (if not already done):
+   ```bash
+   mintlify init
+   ```
 
-## Publishing changes
+3. **Preview locally**:
+   ```bash
+   mintlify dev
+   ```
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
+4. **Deploy**:
+   ```bash
+   mintlify deploy
+   ```
 
-## Need help?
+## Customization
 
-### Troubleshooting
+- **Logo**: Add logo files to `/logo/` directory (dark.svg, light.svg)
+- **Favicon**: Add favicon.svg to root
+- **Colors**: Edit `colors` in `mint.json`
+- **Navigation**: Edit `navigation` array in `mint.json`
 
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
+## Notes
 
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+- All MDX files use Mintlify components (Card, CardGroup, CodeGroup, etc.)
+- Diagrams use Mermaid syntax
+- Code examples include multiple languages where applicable
+

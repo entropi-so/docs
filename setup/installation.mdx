@@ -1,0 +1,300 @@
+---
+title: Installation
+description: "Step-by-step guide to install and set up Entropi API on your local machine."
+---
+
+## Prerequisites
+
+Before installing Entropi API, ensure you have:
+
+<CardGroup cols={2}>
+  <Card title="Python 3.10+" icon="python">
+    Python 3.10 or higher
+  </Card>
+  <Card title="PostgreSQL 14+" icon="database">
+    PostgreSQL database server
+  </Card>
+  <Card title="API Keys" icon="key">
+    Groq and Gemini API keys
+  </Card>
+  <Card title="Git" icon="code-branch">
+    Git for cloning the repository
+  </Card>
+</CardGroup>
+
+## Quick Start
+
+<Steps>
+  <Step title="1. Clone the Repository">
+    ```bash
+    git clone https://github.com/yourusername/entropi-api.git
+    cd entropi-api/core-palme
+    ```
+  </Step>
+
+  <Step title="2. Create Virtual Environment">
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    ```
+  </Step>
+
+  <Step title="3. Install Dependencies">
+    ```bash
+    pip install -r requirements.txt
+    ```
+  </Step>
+
+  <Step title="4. Set Up Database">
+    Create a PostgreSQL database:
+    ```bash
+    createdb palme
+    ```
+    
+    Or using psql:
+    ```sql
+    CREATE DATABASE palme;
+    ```
+  </Step>
+
+  <Step title="5. Configure Environment">
+    Create a `.env` file in the `core-palme` directory:
+    ```bash
+    cp .env.example .env
+    # Edit .env with your configuration
+    ```
+    
+    See [Configuration Guide](/setup/configuration) for details.
+  </Step>
+
+  <Step title="6. Run Migrations">
+    ```bash
+    alembic upgrade head
+    ```
+  </Step>
+
+  <Step title="7. Start the Server">
+    ```bash
+    uvicorn app.main:app --reload
+    ```
+    
+    Or use the provided script:
+    ```bash
+    ./run.sh
+    ```
+  </Step>
+</Steps>
+
+## Detailed Installation
+
+### 1. Python Environment
+
+<CodeGroup>
+```bash macOS/Linux
+# Check Python version
+python3 --version  # Should be 3.10+
+
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+source venv/bin/activate
+```
+
+```bash Windows
+# Check Python version
+python --version  # Should be 3.10+
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+venv\Scripts\activate
+```
+</CodeGroup>
+
+### 2. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+**Key Dependencies**:
+- `fastapi` - Web framework
+- `uvicorn` - ASGI server
+- `sqlalchemy` - ORM
+- `psycopg2-binary` - PostgreSQL driver
+- `alembic` - Database migrations
+- `groq` - Groq API client
+- `google-generativeai` - Gemini API client
+- `pillow` & `pillow-heif` - Image processing
+
+### 3. PostgreSQL Setup
+
+<AccordionGroup>
+  <Accordion title="macOS (Homebrew)">
+    ```bash
+    brew install postgresql@14
+    brew services start postgresql@14
+    
+    # Create database
+    createdb palme
+    ```
+  </Accordion>
+
+  <Accordion title="Linux (Ubuntu/Debian)">
+    ```bash
+    sudo apt update
+    sudo apt install postgresql postgresql-contrib
+    
+    # Create database
+    sudo -u postgres createdb palme
+    ```
+  </Accordion>
+
+  <Accordion title="Windows">
+    Download and install from [PostgreSQL Downloads](https://www.postgresql.org/download/windows/)
+    
+    Create database using pgAdmin or psql:
+    ```sql
+    CREATE DATABASE palme;
+    ```
+  </Accordion>
+
+  <Accordion title="Docker">
+    ```bash
+    docker run --name postgres-palme \
+      -e POSTGRES_PASSWORD=yourpassword \
+      -e POSTGRES_DB=palme \
+      -p 5432:5432 \
+      -d postgres:14
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### 4. Database Migrations
+
+Run Alembic migrations to create tables:
+
+```bash
+# Apply all migrations
+alembic upgrade head
+
+# Check current revision
+alembic current
+
+# View migration history
+alembic history
+```
+
+### 5. API Keys Setup
+
+You'll need API keys for:
+
+<CardGroup cols={2}>
+  <Card title="Groq API" icon="key">
+    For OCR service  
+    Get from: [Groq Console](https://console.groq.com)
+  </Card>
+  <Card title="Gemini API" icon="key">
+    For crop and search services  
+    Get from: [Google AI Studio](https://makersuite.google.com/app/apikey)
+  </Card>
+</CardGroup>
+
+Add them to your `.env` file (see [Configuration](/setup/configuration)).
+
+## Verification
+
+Test that everything is working:
+
+<Steps>
+  <Step title="1. Check Server">
+    Visit `http://localhost:8000` - should return `{"status": "OK"}`
+  </Step>
+
+  <Step title="2. Check API Docs">
+    Visit `http://localhost:8000/docs` - Swagger UI should load
+  </Step>
+
+  <Step title="3. Test Database">
+    ```bash
+    python -c "
+    from app.database import SessionLocal
+    from sqlalchemy import text
+    db = SessionLocal()
+    result = db.execute(text('SELECT 1'))
+    print('✅ Database connection OK')
+    db.close()
+    "
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Import Errors">
+    Make sure your virtual environment is activated and dependencies are installed:
+    ```bash
+    source venv/bin/activate
+    pip install -r requirements.txt
+    ```
+  </Accordion>
+
+  <Accordion title="Database Connection Failed">
+    Check:
+    - PostgreSQL is running
+    - Database exists
+    - `DATABASE_URL` in `.env` is correct
+    - User has permissions
+  </Accordion>
+
+  <Accordion title="HEIC Conversion Fails">
+    Install `pillow-heif`:
+    ```bash
+    pip install pillow-heif
+    ```
+    
+    On macOS, you may need:
+    ```bash
+    brew install libheif
+    ```
+  </Accordion>
+
+  <Accordion title="API Key Errors">
+    Verify your API keys are correct in `.env`:
+    - `OCR_API_KEY` (Groq)
+    - `OBJDETECT_API_KEY` (Gemini)
+    - `GEMINI_API_KEY` (Gemini)
+  </Accordion>
+</AccordionGroup>
+
+## Development Setup
+
+For development, use the reload flag:
+
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+This enables:
+- Auto-reload on code changes
+- Access from other devices on your network
+- Debug mode
+
+## Production Setup
+
+<Warning>
+  For production, use a proper ASGI server like Gunicorn with Uvicorn workers:
+  ```bash
+  gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
+  ```
+</Warning>
+
+## Next Steps
+
+- Configure your [Environment Variables](/setup/configuration)
+- Test the [API Endpoints](/api-reference/analyze)
+- Explore the [Architecture](/architecture)
+

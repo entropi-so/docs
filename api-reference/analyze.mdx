@@ -1,0 +1,284 @@
+---
+title: Analyze Product
+description: "Main endpoint for product analysis. Upload a screenshot and get structured product data."
+---
+
+## Endpoint
+
+<ParamField body="POST /api/v1/pipeline/analyze" type="endpoint">
+  Full product analysis pipeline endpoint
+</ParamField>
+
+```http
+POST /api/v1/pipeline/analyze
+```
+
+## Overview
+
+This is the **main endpoint** of Entropi API. It orchestrates the complete pipeline:
+
+1. **Image Conversion** - Converts HEIC/JPEG/PNG to optimized format
+2. **OCR Extraction** - Extracts product information using Groq Vision
+3. **Smart Cropping** - Detects and crops the main product
+4. **Search Enrichment** - Finds merchant URL and scrapes additional data
+5. **Database Storage** - Saves product to PostgreSQL
+
+## Request
+
+<ParamField body="file" type="file" required>
+  Product screenshot (HEIC/JPEG/PNG/WebP)
+</ParamField>
+
+### Headers
+
+```http
+Content-Type: multipart/form-data
+```
+
+### cURL Example
+
+<CodeGroup>
+```bash cURL
+curl -X POST "http://localhost:8000/api/v1/pipeline/analyze" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@screenshot.jpg"
+```
+
+```python Python
+import requests
+
+url = "http://localhost:8000/api/v1/pipeline/analyze"
+files = {"file": open("screenshot.jpg", "rb")}
+
+response = requests.post(url, files=files)
+product = response.json()
+```
+
+```javascript JavaScript
+const formData = new FormData();
+formData.append('file', fileInput.files[0]);
+
+const response = await fetch('http://localhost:8000/api/v1/pipeline/analyze', {
+  method: 'POST',
+  body: formData
+});
+
+const product = await response.json();
+```
+</CodeGroup>
+
+## Response
+
+### Success Response (201 Created)
+
+```json
+{
+  "id": 1,
+  "name": "UBURN - LA BOISSON VIOLETTE ANTI-FRINGALES",
+  "price": 34.5,
+  "description": "A purple drink product set for weight loss...",
+  "image_url": "data:image/jpeg;base64,/9j/4AAQ...",
+  "currency": "EUR",
+  "merchant": "Not specified",
+  "product_url": "https://example.com/product/123",
+  "category": "Dietary Supplements",
+  "tags": "weight-loss, supplements, search_confidence:95",
+  "object_type": "Dietary Supplement Kit",
+  "created_at": "2026-02-05T11:51:04.809415-08:00"
+}
+```
+
+<ParamField body="id" type="integer">
+  Product ID (auto-generated)
+</ParamField>
+<ParamField body="name" type="string">
+  Product name (from OCR)
+</ParamField>
+<ParamField body="price" type="float">
+  Product price (numeric)
+</ParamField>
+<ParamField body="description" type="string">
+  Product description
+</ParamField>
+<ParamField body="image_url" type="string">
+  Base64-encoded cropped product image (data URI format)
+</ParamField>
+<ParamField body="currency" type="string">
+  Currency code (EUR, USD, etc.)
+</ParamField>
+<ParamField body="merchant" type="string">
+  Brand or merchant name
+</ParamField>
+<ParamField body="product_url" type="string">
+  Merchant product URL (from enrichment, if found)
+</ParamField>
+<ParamField body="category" type="string">
+  Product category
+</ParamField>
+<ParamField body="tags" type="string">
+  Comma-separated tags (may include search_confidence)
+</ParamField>
+<ParamField body="object_type" type="string">
+  Type of object (e.g., "leather jacket")
+</ParamField>
+<ParamField body="created_at" type="timestamp">
+  Product creation timestamp
+</ParamField>
+
+## Error Responses
+
+### 400 Bad Request
+
+Invalid file or file read error.
+
+```json
+{
+  "detail": "Could not read file: ..."
+}
+```
+
+### 422 Unprocessable Entity
+
+Image conversion or OCR extraction failed.
+
+```json
+{
+  "detail": "Image conversion failed: ..."
+}
+```
+
+```json
+{
+  "detail": "OCR analysis failed: ..."
+}
+```
+
+### 500 Internal Server Error
+
+Database save failed.
+
+```json
+{
+  "detail": "Failed to save product: ..."
+}
+```
+
+## Pipeline Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant ImageService
+    participant OCRService
+    participant CropService
+    participant SearchService
+    participant Database
+
+    Client->>API: POST /analyze (file)
+    API->>ImageService: Convert image
+    ImageService-->>API: base64_image
+    
+    API->>OCRService: Extract data
+    OCRService-->>API: ocr_data
+    
+    API->>CropService: Crop product
+    CropService-->>API: cropped_image
+    
+    API->>SearchService: Enrich data
+    SearchService-->>API: enrichment_data
+    
+    API->>Database: Save product
+    Database-->>API: product_record
+    API-->>Client: 201 Created (product JSON)
+```
+
+## Processing Time
+
+<Warning>
+  The endpoint is **synchronous** and may take **10-18 seconds** to complete:
+  - Image conversion: ~200ms
+  - OCR extraction: ~3-5s
+  - Smart cropping: ~2-3s
+  - Search enrichment: ~5-10s
+  - Database save: ~100ms
+</Warning>
+
+<Tip>
+  For production, consider implementing async task queues (Celery, RQ) to process requests in the background.
+</Tip>
+
+## Supported Image Formats
+
+<CardGroup cols={2}>
+  <Card title="HEIC" icon="mobile-screen">
+    iOS screenshots (primary use case)
+  </Card>
+  <Card title="JPEG" icon="image">
+    Standard JPEG images
+  </Card>
+  <Card title="PNG" icon="image">
+    PNG images
+  </Card>
+  <Card title="WebP" icon="image">
+    WebP format
+  </Card>
+</CardGroup>
+
+## Graceful Degradation
+
+The pipeline implements graceful degradation:
+
+<AccordionGroup>
+  <Accordion title="Crop Service Failure">
+    If cropping fails, the original image is used. Pipeline continues.
+  </Accordion>
+
+  <Accordion title="Search Enrichment Failure">
+    If enrichment fails or confidence is low, only OCR data is saved. Pipeline continues.
+  </Accordion>
+</AccordionGroup>
+
+## Example Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Instagram Product" icon="instagram">
+    Upload screenshot of Instagram product post
+  </Card>
+  <Card title="E-commerce Page" icon="shopping-cart">
+    Upload screenshot of product page
+  </Card>
+  <Card title="TikTok Product" icon="mobile-screen">
+    Upload screenshot of TikTok product video
+  </Card>
+  <Card title="Web Product" icon="globe">
+    Upload screenshot of any product webpage
+  </Card>
+</CardGroup>
+
+## Testing
+
+Test the endpoint with a sample screenshot:
+
+```bash
+# Using cURL
+curl -X POST "http://localhost:8000/api/v1/pipeline/analyze" \
+  -F "file=@test-screenshot.jpg"
+
+# Using Python
+python -c "
+import requests
+response = requests.post(
+    'http://localhost:8000/api/v1/pipeline/analyze',
+    files={'file': open('test-screenshot.jpg', 'rb')}
+)
+print(response.json())
+"
+```
+
+## Next Steps
+
+- Learn about [Authentication](/api-reference/authentication) (coming soon)
+- Check the [Architecture](/architecture) to understand the pipeline
+- Explore [Services](/services/overview) for more details
+
