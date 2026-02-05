@@ -15,13 +15,13 @@ POST /api/v1/pipeline/analyze
 
 ## Overview
 
-This is the **main endpoint** of Entropi API. It orchestrates the complete pipeline:
+This is the main endpoint of Entropi API. It orchestrates the complete pipeline:
 
-1. **Image Conversion** - Converts HEIC/JPEG/PNG to optimized format
-2. **OCR Extraction** - Extracts product information using Groq Vision
-3. **Smart Cropping** - Detects and crops the main product
-4. **Search Enrichment** - Finds merchant URL and scrapes additional data
-5. **Database Storage** - Saves product to PostgreSQL
+1. Image Conversion - Converts HEIC/JPEG/PNG to optimized format
+2. OCR Extraction - Extracts product information using Groq Vision
+3. Smart Cropping - Detects and crops the main product
+4. Search Enrichment - Finds merchant URL and scrapes additional data
+5. Database Storage - Saves product to PostgreSQL
 
 ## Request
 
@@ -71,7 +71,7 @@ const product = await response.json();
 
 ### Success Response (201 Created)
 
-```json
+```json title="success_response.json"
 {
   "id": 1,
   "name": "UBURN - LA BOISSON VIOLETTE ANTI-FRINGALES",
@@ -131,7 +131,7 @@ const product = await response.json();
 
 Invalid file or file read error.
 
-```json
+```json title="error_400.json"
 {
   "detail": "Could not read file: ..."
 }
@@ -141,13 +141,13 @@ Invalid file or file read error.
 
 Image conversion or OCR extraction failed.
 
-```json
+```json title="error_422.json"
 {
   "detail": "Image conversion failed: ..."
 }
 ```
 
-```json
+```json title="error_422_ocr.json"
 {
   "detail": "OCR analysis failed: ..."
 }
@@ -157,7 +157,7 @@ Image conversion or OCR extraction failed.
 
 Database save failed.
 
-```json
+```json title="error_500.json"
 {
   "detail": "Failed to save product: ..."
 }
@@ -195,90 +195,67 @@ sequenceDiagram
 
 ## Processing Time
 
-<Warning>
-  The endpoint is **synchronous** and may take **10-18 seconds** to complete:
-  - Image conversion: ~200ms
-  - OCR extraction: ~3-5s
-  - Smart cropping: ~2-3s
-  - Search enrichment: ~5-10s
-  - Database save: ~100ms
-</Warning>
+The endpoint is synchronous and may take 10-18 seconds to complete:
 
-<Tip>
+- Image conversion: ~200ms
+- OCR extraction: ~3-5s
+- Smart cropping: ~2-3s
+- Search enrichment: ~5-10s
+- Database save: ~100ms
+
+<Note>
   For production, consider implementing async task queues (Celery, RQ) to process requests in the background.
-</Tip>
+</Note>
 
 ## Supported Image Formats
 
-<CardGroup cols={2}>
-  <Card title="HEIC" icon="mobile-screen">
-    iOS screenshots (primary use case)
-  </Card>
-  <Card title="JPEG" icon="image">
-    Standard JPEG images
-  </Card>
-  <Card title="PNG" icon="image">
-    PNG images
-  </Card>
-  <Card title="WebP" icon="image">
-    WebP format
-  </Card>
-</CardGroup>
+| Format | Description |
+|--------|-------------|
+| HEIC | iOS screenshots (primary use case) |
+| JPEG | Standard JPEG images |
+| PNG | PNG images |
+| WebP | WebP format |
 
 ## Graceful Degradation
 
 The pipeline implements graceful degradation:
 
-<AccordionGroup>
-  <Accordion title="Crop Service Failure">
-    If cropping fails, the original image is used. Pipeline continues.
-  </Accordion>
-
-  <Accordion title="Search Enrichment Failure">
-    If enrichment fails or confidence is low, only OCR data is saved. Pipeline continues.
-  </Accordion>
-</AccordionGroup>
+| Service Failure | Behavior |
+|----------------|----------|
+| Crop Service Failure | If cropping fails, the original image is used. Pipeline continues |
+| Search Enrichment Failure | If enrichment fails or confidence is low, only OCR data is saved. Pipeline continues |
 
 ## Example Use Cases
 
-<CardGroup cols={2}>
-  <Card title="Instagram Product" icon="instagram">
-    Upload screenshot of Instagram product post
-  </Card>
-  <Card title="E-commerce Page" icon="shopping-cart">
-    Upload screenshot of product page
-  </Card>
-  <Card title="TikTok Product" icon="mobile-screen">
-    Upload screenshot of TikTok product video
-  </Card>
-  <Card title="Web Product" icon="globe">
-    Upload screenshot of any product webpage
-  </Card>
-</CardGroup>
+| Use Case | Description |
+|----------|-------------|
+| Instagram Product | Upload screenshot of Instagram product post |
+| E-commerce Page | Upload screenshot of product page |
+| TikTok Product | Upload screenshot of TikTok product video |
+| Web Product | Upload screenshot of any product webpage |
 
 ## Testing
 
 Test the endpoint with a sample screenshot:
 
-```bash
+```bash title="test_curl.sh"
 # Using cURL
 curl -X POST "http://localhost:8000/api/v1/pipeline/analyze" \
   -F "file=@test-screenshot.jpg"
+```
 
+```python title="test_python.py"
 # Using Python
-python -c "
 import requests
 response = requests.post(
     'http://localhost:8000/api/v1/pipeline/analyze',
     files={'file': open('test-screenshot.jpg', 'rb')}
 )
 print(response.json())
-"
 ```
 
-## Next Steps
+## Related Resources
 
-- Learn about [Authentication](/api-reference/authentication) (coming soon)
-- Check the [Architecture](/architecture) to understand the pipeline
-- Explore [Services](/services/overview) for more details
-
+- [Authentication](/api-reference/authentication) - Learn about authentication
+- [Architecture](/architecture) - Understand the pipeline
+- [Services](/services/overview) - Explore service details

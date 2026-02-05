@@ -3,9 +3,7 @@ title: Database Schema
 description: "Complete database schema, relationships, and query examples for Entropi API."
 ---
 
-## Overview
-
-Entropi uses **PostgreSQL** as its primary database, managed through **SQLAlchemy 2.0** ORM and **Alembic** for migrations.
+Entropi uses PostgreSQL as its primary database, managed through SQLAlchemy 2.0 ORM and Alembic for migrations.
 
 ## Entity Relationship Diagram
 
@@ -77,7 +75,7 @@ Stores user accounts and authentication information.
 </ParamField>
 
 **SQL Schema**:
-```sql
+```sql title="users table"
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username VARCHAR UNIQUE NOT NULL,
@@ -129,7 +127,7 @@ The core table storing all extracted product information.
 </ParamField>
 
 **SQL Schema**:
-```sql
+```sql title="products table"
 CREATE TABLE products (
     id SERIAL PRIMARY KEY,
     name VARCHAR NOT NULL,
@@ -164,7 +162,7 @@ User-created collections of products.
 </ParamField>
 
 **SQL Schema**:
-```sql
+```sql title="lists table"
 CREATE TABLE lists (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id),
@@ -191,7 +189,7 @@ Many-to-many relationship between lists and products.
 </ParamField>
 
 **SQL Schema**:
-```sql
+```sql title="list_products table"
 CREATE TABLE list_products (
     id SERIAL PRIMARY KEY,
     list_id INTEGER REFERENCES lists(id),
@@ -202,20 +200,16 @@ CREATE TABLE list_products (
 
 ## Relationships
 
-<CardGroup cols={2}>
-  <Card title="Users → Lists" icon="users">
-    One-to-many: A user can create multiple lists
-  </Card>
-  <Card title="Lists ↔ Products" icon="list">
-    Many-to-many: Products can belong to multiple lists
-  </Card>
-</CardGroup>
+| Relationship | Type | Description |
+|--------------|------|-------------|
+| Users → Lists | One-to-many | A user can create multiple lists |
+| Lists ↔ Products | Many-to-many | Products can belong to multiple lists |
 
 ## Indexes
 
 Recommended indexes for performance:
 
-```sql
+```sql title="performance indexes"
 -- Products table
 CREATE INDEX idx_products_name ON products(name);
 CREATE INDEX idx_products_category ON products(category);
@@ -233,7 +227,7 @@ CREATE INDEX idx_list_products_product_id ON list_products(product_id);
 
 ### Get All Products
 
-```python
+```python title="get_all_products.py"
 from app.models.product import Product
 from app.database import SessionLocal
 
@@ -243,13 +237,13 @@ products = db.query(Product).all()
 
 ### Get Products by Category
 
-```python
+```python title="get_by_category.py"
 products = db.query(Product).filter(Product.category == "Electronics").all()
 ```
 
 ### Get Products in a List
 
-```python
+```python title="get_list_products.py"
 from app.models.list_product import ListProduct
 
 list_products = (
@@ -262,7 +256,7 @@ list_products = (
 
 ### Search Products by Name
 
-```python
+```python title="search_products.py"
 search_term = "jacket"
 products = (
     db.query(Product)
@@ -273,55 +267,34 @@ products = (
 
 ## Migrations
 
-Entropi uses **Alembic** for database migrations. Migrations are located in `alembic/versions/`.
+Entropi uses Alembic for database migrations. Migrations are located in `alembic/versions/`.
 
-<Steps>
-  <Step title="Create Migration">
-    ```bash
-    alembic revision --autogenerate -m "description"
-    ```
-  </Step>
+1. **Create Migration**:
+   ```bash
+   alembic revision --autogenerate -m "description"
+   ```
 
-  <Step title="Review Migration">
-    Check the generated migration file in `alembic/versions/`
-  </Step>
+2. **Review Migration**: Check the generated migration file in `alembic/versions/`
 
-  <Step title="Apply Migration">
-    ```bash
-    alembic upgrade head
-    ```
-  </Step>
-</Steps>
+3. **Apply Migration**:
+   ```bash
+   alembic upgrade head
+   ```
 
-<Warning>
-  Always review auto-generated migrations before applying them in production!
-</Warning>
+<Note>
+  Always review auto-generated migrations before applying them in production.
+</Note>
 
 ## Data Types
 
-<CardGroup cols={2}>
-  <Card title="Text Fields" icon="text">
-    - `name`: VARCHAR (variable length)
-    - `description`: TEXT (unlimited length)
-    - `image_url`: TEXT (base64 can be large)
-  </Card>
-  <Card title="Numeric Fields" icon="hashtag">
-    - `price`: FLOAT (supports decimals)
-    - `id`: SERIAL (auto-increment integer)
-  </Card>
-  <Card title="Timestamps" icon="clock">
-    - `created_at`: TIMESTAMP WITH TIME ZONE
-    - `added_at`: TIMESTAMP WITH TIME ZONE
-  </Card>
-  <Card title="Constraints" icon="lock">
-    - UNIQUE: username, email
-    - NOT NULL: name, price, currency
-    - FOREIGN KEY: user_id, list_id, product_id
-  </Card>
-</CardGroup>
+| Category | Fields | Description |
+|----------|--------|-------------|
+| Text Fields | `name`, `description`, `image_url` | VARCHAR (variable length) or TEXT (unlimited length) |
+| Numeric Fields | `price`, `id` | FLOAT (supports decimals) or SERIAL (auto-increment integer) |
+| Timestamps | `created_at`, `added_at` | TIMESTAMP WITH TIME ZONE |
+| Constraints | `username`, `email`, `name`, `price`, `currency` | UNIQUE, NOT NULL, FOREIGN KEY |
 
-## Next Steps
+## Related Resources
 
-- Explore the [API Reference](/api-reference/analyze) to see how products are created
-- Learn about [Services](/services/overview) that interact with the database
-
+- [API Reference](/api-reference/analyze) - See how products are created
+- [Services Overview](/services/overview) - Services that interact with the database

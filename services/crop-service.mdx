@@ -3,9 +3,7 @@ title: Crop Service
 description: "Intelligently detect and crop product images from screenshots using Gemini 2.0 Flash bounding box detection."
 ---
 
-## Overview
-
-The **Crop Service** uses AI vision to detect the main product in a screenshot and crop it, removing UI elements, logos, and other distractions. It uses Gemini 2.0 Flash with native bounding box detection.
+The Crop Service uses AI vision to detect the main product in a screenshot and crop it, removing UI elements, logos, and other distractions. It uses Gemini 2.0 Flash with native bounding box detection.
 
 **File**: `app/services/image_crop_service.py`
 
@@ -15,7 +13,7 @@ The **Crop Service** uses AI vision to detect the main product in a screenshot a
   Detects product bounding box and crops the image to focus on the product.
 </ParamField>
 
-```python
+```python title="function_signature.py"
 async def crop_product_image(
     base64_image: str,
     ocr_context: Optional[Dict[str, Any]] = None,
@@ -37,33 +35,21 @@ async def crop_product_image(
 
 ## How It Works
 
-<Steps>
-  <Step title="1. Bounding Box Detection">
-    Gemini 2.0 Flash analyzes the image and returns normalized coordinates (0-1000) for the product location.
-  </Step>
+1. **Bounding Box Detection**: Gemini 2.0 Flash analyzes the image and returns normalized coordinates (0-1000) for the product location.
 
-  <Step title="2. Coordinate Conversion">
-    Normalized coordinates are converted to pixel coordinates based on image dimensions.
-  </Step>
+2. **Coordinate Conversion**: Normalized coordinates are converted to pixel coordinates based on image dimensions.
 
-  <Step title="3. Validation">
-    Bounding box is validated to ensure it's within image bounds and has valid dimensions.
-  </Step>
+3. **Validation**: Bounding box is validated to ensure it's within image bounds and has valid dimensions.
 
-  <Step title="4. Cropping with Padding">
-    Image is cropped to the detected area with configurable padding (default 20%).
-  </Step>
+4. **Cropping with Padding**: Image is cropped to the detected area with configurable padding (default 20%).
 
-  <Step title="5. Fallback">
-    If detection fails, returns the original image unchanged.
-  </Step>
-</Steps>
+5. **Fallback**: If detection fails, returns the original image unchanged.
 
-## Implementation Details
+## Implementation
 
 ### Bounding Box Detection
 
-```python
+```python title="bbox_detection.py"
 async def _detect_product_bbox(
     base64_image: str, 
     ocr_context: Optional[Dict[str, Any]] = None
@@ -106,7 +92,7 @@ async def _detect_product_bbox(
 
 ### Cropping with Padding
 
-```python
+```python title="crop_with_padding.py"
 async def _crop_with_bbox(
     base64_image: str, 
     bbox: Tuple[int, int, int, int], 
@@ -136,7 +122,7 @@ async def _crop_with_bbox(
 
 ## Usage Example
 
-```python
+```python title="usage_example.py"
 from app.services.image_crop_service import crop_product_image
 
 # With OCR context (recommended)
@@ -158,39 +144,25 @@ cropped_image = await crop_product_image(base64_image)
 
 Using OCR context helps the model:
 
-<CardGroup cols={2}>
-  <Card title="Focus on Product" icon="target">
-    Avoids cropping logos or UI elements
-  </Card>
-  <Card title="Better Accuracy" icon="check-circle">
-    Uses product name/type as hints
-  </Card>
-</CardGroup>
+- **Focus on Product**: Avoids cropping logos or UI elements
+- **Better Accuracy**: Uses product name/type as hints
 
 Example: If OCR detects "sunglasses", the model will look for sunglasses instead of random objects.
 
 ## Performance
 
-<CardGroup cols={2}>
-  <Card title="Average Time" icon="clock">
-    2-3 seconds per image
-  </Card>
-  <Card title="Success Rate" icon="check-circle">
-    90%+ (falls back gracefully)
-  </Card>
-  <Card title="Model" icon="brain">
-    Gemini 2.5 Flash
-  </Card>
-  <Card title="Padding" icon="expand">
-    Default 20% (configurable)
-  </Card>
-</CardGroup>
+| Metric | Value |
+|--------|-------|
+| Average Time | 2-3 seconds per image |
+| Success Rate | 90%+ (falls back gracefully) |
+| Model | Gemini 2.5 Flash |
+| Padding | Default 20% (configurable) |
 
 ## Configuration
 
 Add to your `.env` file:
 
-```bash
+```bash title=".env"
 OBJDETECT_API_KEY=your_gemini_api_key_here
 ```
 
@@ -198,7 +170,7 @@ Get your API key from: [Google AI Studio](https://makersuite.google.com/app/apik
 
 ## Dependencies
 
-```txt
+```txt title="requirements.txt"
 google-generativeai>=0.3.0
 pillow>=10.0.0
 ```
@@ -210,14 +182,13 @@ pip install google-generativeai pillow
 
 ## Error Handling
 
-<Warning>
-  The service implements **graceful degradation**:
-  - If detection fails → returns original image
-  - If bbox is invalid → returns original image
-  - If cropping fails → returns original image
-  
-  The pipeline continues even if cropping fails.
-</Warning>
+The service implements graceful degradation:
+
+- If detection fails → returns original image
+- If bbox is invalid → returns original image
+- If cropping fails → returns original image
+
+The pipeline continues even if cropping fails.
 
 ## Coordinate System
 
@@ -229,28 +200,17 @@ These are converted to pixel coordinates based on actual image dimensions.
 
 ## Limitations
 
-<AccordionGroup>
-  <Accordion title="Multiple Products">
-    Currently detects only the main/primary product. Multiple products may confuse the model.
-  </Accordion>
-
-  <Accordion title="Complex Backgrounds">
-    Very cluttered backgrounds may reduce detection accuracy.
-  </Accordion>
-
-  <Accordion title="Small Products">
-    Very small products in large screenshots may be missed.
-  </Accordion>
-</AccordionGroup>
-
-## Future Improvements (V2)
+| Limitation | Description |
+|------------|-------------|
+| Multiple Products | Currently detects only the main/primary product. Multiple products may confuse the model |
+| Complex Backgrounds | Very cluttered backgrounds may reduce detection accuracy |
+| Small Products | Very small products in large screenshots may be missed |
 
 <Note>
   V2 will use a custom trained model for bounding box detection, improving accuracy and speed.
 </Note>
 
-## Next Steps
+## Related Resources
 
-- Learn about [Search Enrichment](/services/search-enrichment) that uses cropped images
-- Check the [Architecture](/architecture) to see how services connect
-
+- [Search Enrichment](/services/search-enrichment) - Uses cropped images
+- [Architecture](/architecture) - See how services connect

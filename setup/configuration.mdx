@@ -3,8 +3,6 @@ title: Configuration
 description: "Complete guide to configuring Entropi API environment variables and settings."
 ---
 
-## Environment Variables
-
 Entropi API uses a `.env` file for configuration. Create this file in the `core-palme` directory.
 
 ## Required Variables
@@ -21,7 +19,7 @@ postgresql://username:password@localhost:5432/database_name
 ```
 
 **Example**:
-```bash
+```bash title=".env"
 DATABASE_URL=postgresql://postgres:password@localhost:5432/palme
 ```
 
@@ -47,7 +45,7 @@ DATABASE_URL=postgresql://user:pass@db.example.com:5432/palme
 
 Get from: [Groq Console](https://console.groq.com)
 
-```bash
+```bash title=".env"
 OCR_API_KEY=gsk_your_groq_api_key_here
 ```
 
@@ -57,7 +55,7 @@ OCR_API_KEY=gsk_your_groq_api_key_here
 
 Get from: [Google AI Studio](https://makersuite.google.com/app/apikey)
 
-```bash
+```bash title=".env"
 OBJDETECT_API_KEY=your_gemini_api_key_here
 ```
 
@@ -65,13 +63,13 @@ OBJDETECT_API_KEY=your_gemini_api_key_here
   Gemini API key for search enrichment service
 </ParamField>
 
-```bash
+```bash title=".env"
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-<Tip>
+<Note>
   You can use the same Gemini API key for both `OBJDETECT_API_KEY` and `GEMINI_API_KEY`.
-</Tip>
+</Note>
 
 ### Authentication (JWT)
 
@@ -84,7 +82,7 @@ Generate a secure key:
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
-```bash
+```bash title=".env"
 SECRET_KEY=your-secret-key-here-min-32-characters
 ```
 
@@ -92,7 +90,7 @@ SECRET_KEY=your-secret-key-here-min-32-characters
   JWT algorithm (default: HS256)
 </ParamField>
 
-```bash
+```bash title=".env"
 ALGORITHM=HS256
 ```
 
@@ -100,13 +98,13 @@ ALGORITHM=HS256
   Token expiration time in minutes (default: 10080 = 7 days)
 </ParamField>
 
-```bash
+```bash title=".env"
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
 ```
 
 ## Complete .env Example
 
-```bash
+```bash title=".env"
 # Database
 DATABASE_URL=postgresql://postgres:password@localhost:5432/palme
 
@@ -131,7 +129,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=10080
   Logging level (DEBUG, INFO, WARNING, ERROR)
 </ParamField>
 
-```bash
+```bash title=".env"
 LOG_LEVEL=INFO
 ```
 
@@ -141,7 +139,7 @@ LOG_LEVEL=INFO
   Server host (default: 0.0.0.0)
 </ParamField>
 
-```bash
+```bash title=".env"
 HOST=0.0.0.0
 ```
 
@@ -149,7 +147,7 @@ HOST=0.0.0.0
   Server port (default: 8000)
 </ParamField>
 
-```bash
+```bash title=".env"
 PORT=8000
 ```
 
@@ -159,27 +157,20 @@ PORT=8000
   Comma-separated list of allowed origins
 </ParamField>
 
-```bash
+```bash title=".env"
 CORS_ORIGINS=http://localhost:3000,https://app.example.com
 ```
 
 ## Environment-Specific Configs
 
-<CardGroup cols={2}>
-  <Card title="Development" icon="code">
-    Use local database and API keys  
-    Enable debug mode
-  </Card>
-  <Card title="Production" icon="server">
-    Use production database  
-    Secure API keys  
-    Disable debug mode
-  </Card>
-</CardGroup>
+| Environment | Configuration |
+|-------------|---------------|
+| Development | Use local database and API keys, enable debug mode |
+| Production | Use production database, secure API keys, disable debug mode |
 
 ### Development .env
 
-```bash
+```bash title=".env.development"
 # Development
 DATABASE_URL=postgresql://postgres:devpass@localhost:5432/palme_dev
 LOG_LEVEL=DEBUG
@@ -187,7 +178,7 @@ LOG_LEVEL=DEBUG
 
 ### Production .env
 
-```bash
+```bash title=".env.production"
 # Production
 DATABASE_URL=postgresql://user:securepass@prod-db.example.com:5432/palme
 LOG_LEVEL=WARNING
@@ -196,37 +187,27 @@ SECRET_KEY=very-secure-production-key-here
 
 ## Security Best Practices
 
-<Warning>
-  **Never commit `.env` files to version control!**
-  
-  Add to `.gitignore`:
-  ```
-  .env
-  .env.local
-  .env.*.local
-  ```
-</Warning>
+Never commit `.env` files to version control.
 
-<CardGroup cols={2}>
-  <Card title="✅ Do" icon="check-circle">
-    - Use strong, unique SECRET_KEY  
-    - Rotate API keys regularly  
-    - Use environment variables in production  
-    - Restrict database access
-  </Card>
-  <Card title="❌ Don't" icon="x-circle">
-    - Commit .env files  
-    - Share API keys  
-    - Use default SECRET_KEY  
-    - Expose database publicly
-  </Card>
-</CardGroup>
+Add to `.gitignore`:
+```
+.env
+.env.local
+.env.*.local
+```
+
+| Do | Don't |
+|----|-------|
+| Use strong, unique SECRET_KEY | Commit .env files |
+| Rotate API keys regularly | Share API keys |
+| Use environment variables in production | Use default SECRET_KEY |
+| Restrict database access | Expose database publicly |
 
 ## Verifying Configuration
 
 Test your configuration:
 
-```bash
+```bash title="verify_config.py"
 # Check if all required variables are set
 python -c "
 import os
@@ -243,57 +224,30 @@ required = [
 
 missing = [var for var in required if not os.getenv(var)]
 if missing:
-    print(f'❌ Missing: {missing}')
+    print(f'Missing: {missing}')
 else:
-    print('✅ All required variables set')
+    print('All required variables set')
 "
 ```
 
 ## Configuration Files
 
-<AccordionGroup>
-  <Accordion title=".env">
-    Main configuration file (not versioned)
-  </Accordion>
-
-  <Accordion title=".env.example">
-    Template file (versioned) showing required variables
-  </Accordion>
-
-  <Accordion title="app/config.py">
-    Python configuration loader
-  </Accordion>
-</AccordionGroup>
+| File | Purpose |
+|------|---------|
+| .env | Main configuration file (not versioned) |
+| .env.example | Template file (versioned) showing required variables |
+| app/config.py | Python configuration loader |
 
 ## Troubleshooting
 
-<AccordionGroup>
-  <Accordion title="Variables Not Loading">
-    Make sure:
-    - `.env` file is in `core-palme` directory
-    - `python-dotenv` is installed
-    - File has no syntax errors
-  </Accordion>
+| Issue | Solution |
+|-------|----------|
+| Variables Not Loading | Make sure `.env` file is in `core-palme` directory, `python-dotenv` is installed, file has no syntax errors |
+| Database Connection Failed | Check `DATABASE_URL` format is correct, PostgreSQL is running, credentials are correct, database exists |
+| API Key Errors | Verify keys are correct (no extra spaces), keys are not expired, API quotas are not exceeded |
 
-  <Accordion title="Database Connection Failed">
-    Check:
-    - `DATABASE_URL` format is correct
-    - PostgreSQL is running
-    - Credentials are correct
-    - Database exists
-  </Accordion>
+## Related Resources
 
-  <Accordion title="API Key Errors">
-    Verify:
-    - Keys are correct (no extra spaces)
-    - Keys are not expired
-    - API quotas are not exceeded
-  </Accordion>
-</AccordionGroup>
-
-## Next Steps
-
-- Complete the [Installation](/setup/installation) if you haven't
-- Test the [API Endpoints](/api-reference/analyze)
-- Review [Security Best Practices](/setup/configuration#security-best-practices)
-
+- [Installation](/setup/installation) - Complete installation guide
+- [API Endpoints](/api-reference/analyze) - Test the endpoints
+- [Security Best Practices](/setup/configuration#security-best-practices) - Review security guidelines

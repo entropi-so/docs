@@ -3,12 +3,10 @@ title: Authentication
 description: "JWT-based authentication for Entropi API endpoints."
 ---
 
-## Overview
-
-Entropi API uses **JWT (JSON Web Tokens)** for authentication. Users must register and login to receive an access token, which is then used to authenticate API requests.
+Entropi API uses JWT (JSON Web Tokens) for authentication. Users must register and login to receive an access token, which is then used to authenticate API requests.
 
 <Note>
-  Currently, the `/api/v1/pipeline/analyze` endpoint is in **TEST MODE** and does not require authentication. This will change in future versions.
+  Currently, the `/api/v1/pipeline/analyze` endpoint is in TEST MODE and does not require authentication. This will change in future versions.
 </Note>
 
 ## Authentication Flow
@@ -42,7 +40,7 @@ sequenceDiagram
 
 ### Request
 
-```json
+```json title="register_request.json"
 {
   "username": "johndoe",
   "email": "john@example.com",
@@ -62,7 +60,7 @@ sequenceDiagram
 
 ### Response (201 Created)
 
-```json
+```json title="register_response.json"
 {
   "id": 1,
   "username": "johndoe",
@@ -73,7 +71,7 @@ sequenceDiagram
 
 ### cURL Example
 
-```bash
+```bash title="register_curl.sh"
 curl -X POST "http://localhost:8000/auth/register" \
   -H "Content-Type: application/json" \
   -d '{
@@ -91,7 +89,7 @@ curl -X POST "http://localhost:8000/auth/register" \
 
 ### Request
 
-```json
+```json title="login_request.json"
 {
   "username": "johndoe",
   "password": "securepassword123"
@@ -107,7 +105,7 @@ curl -X POST "http://localhost:8000/auth/register" \
 
 ### Response (200 OK)
 
-```json
+```json title="login_response.json"
 {
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "token_type": "bearer",
@@ -127,7 +125,7 @@ curl -X POST "http://localhost:8000/auth/register" \
 
 ### cURL Example
 
-```bash
+```bash title="login_curl.sh"
 curl -X POST "http://localhost:8000/auth/login" \
   -H "Content-Type: application/json" \
   -d '{
@@ -176,9 +174,7 @@ const response = await fetch('http://localhost:8000/api/v1/products', {
 
 ## Token Expiration
 
-<Warning>
-  Tokens expire after **7 days** (604800 seconds) by default. You must login again to get a new token.
-</Warning>
+Tokens expire after 7 days (604800 seconds) by default. You must login again to get a new token.
 
 The expiration time is configurable via `ACCESS_TOKEN_EXPIRE_MINUTES` in your `.env` file.
 
@@ -188,7 +184,7 @@ The expiration time is configurable via `ACCESS_TOKEN_EXPIRE_MINUTES` in your `.
 
 Invalid request data.
 
-```json
+```json title="error_400.json"
 {
   "detail": "Username already exists"
 }
@@ -198,13 +194,13 @@ Invalid request data.
 
 Invalid credentials or missing/invalid token.
 
-```json
+```json title="error_401.json"
 {
   "detail": "Incorrect username or password"
 }
 ```
 
-```json
+```json title="error_401_token.json"
 {
   "detail": "Could not validate credentials"
 }
@@ -214,7 +210,7 @@ Invalid credentials or missing/invalid token.
 
 Validation error.
 
-```json
+```json title="error_422.json"
 {
   "detail": [
     {
@@ -228,34 +224,29 @@ Validation error.
 
 ## Password Security
 
-<CardGroup cols={2}>
-  <Card title="Hashing" icon="lock">
-    Passwords are hashed using **Argon2** before storage
-  </Card>
-  <Card title="Never Stored" icon="shield">
-    Plain text passwords are never stored in the database
-  </Card>
-</CardGroup>
+| Aspect | Description |
+|--------|-------------|
+| Hashing | Passwords are hashed using Argon2 before storage |
+| Never Stored | Plain text passwords are never stored in the database |
 
 ## Configuration
 
 Add to your `.env` file:
 
-```bash
+```bash title=".env"
 SECRET_KEY=your-secret-key-here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=10080  # 7 days
 ```
 
-<Tip>
+<Note>
   Generate a secure secret key:
   ```bash
   python -c "import secrets; print(secrets.token_urlsafe(32))"
   ```
-</Tip>
+</Note>
 
-## Next Steps
+## Related Resources
 
-- Check the [Setup Guide](/setup/configuration) for environment variables
-- Learn about [Protected Endpoints](/api-reference/analyze) (coming soon)
-
+- [Configuration Guide](/setup/configuration) - Environment variables
+- [API Reference](/api-reference/analyze) - Protected endpoints (coming soon)

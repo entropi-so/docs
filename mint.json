@@ -1,50 +1,37 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "Entropi API",
+  "name": "Entropi",
   "logo": {
     "dark": "/logo/dark.svg",
     "light": "/logo/light.svg"
   },
   "favicon": "/favicon.svg",
   "colors": {
-    "primary": "#6366F1",
-    "light": "#818CF8",
-    "dark": "#4F46E5",
+    "primary": "#000000",
+    "light": "#FFFFFF",
+    "dark": "#000000",
+    "background": {
+      "dark": "#0A0A0A",
+      "light": "#FFFFFF"
+    },
     "anchors": {
-      "from": "#6366F1",
-      "to": "#818CF8"
+      "from": "#000000",
+      "to": "#404040"
     }
   },
   "topbarLinks": [
     {
       "name": "GitHub",
-      "url": "https://github.com/yourusername/entropi-api"
+      "url": "https://github.com/entropi-org"
     }
   ],
   "topbarCtaButton": {
-    "name": "Dashboard",
+    "name": "Get Started",
     "url": "https://app.entropi.com"
   },
-  "anchors": [
-    {
-      "name": "Documentation",
-      "icon": "book-open-cover",
-      "url": "https://docs.entropi.com"
-    },
-    {
-      "name": "API Reference",
-      "icon": "code",
-      "url": "https://docs.entropi.com/api-reference"
-    },
-    {
-      "name": "Support",
-      "icon": "headset",
-      "url": "https://support.entropi.com"
-    }
-  ],
   "navigation": [
     {
-      "group": "Get Started",
+      "group": "Getting Started",
       "pages": [
         "introduction",
         "setup/installation",
@@ -77,9 +64,7 @@
     }
   ],
   "footerSocials": {
-    "twitter": "https://twitter.com/entropi",
-    "github": "https://github.com/yourusername/entropi-api",
-    "linkedin": "https://www.linkedin.com/company/entropi"
+    "github": "https://github.com/entropi-org"
   }
 }
 

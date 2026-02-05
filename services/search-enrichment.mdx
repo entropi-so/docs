@@ -3,9 +3,7 @@ title: Search Enrichment
 description: "Enrich product data with web search and scraping using Gemini's function calling capabilities."
 ---
 
-## Overview
-
-The **Search Enrichment** service finds merchant product URLs and scrapes additional product information using Gemini's search grounding and function calling features.
+The Search Enrichment service finds merchant product URLs and scrapes additional product information using Gemini's search grounding and function calling features.
 
 **File**: `app/services/search_enrichement/orchestrator.py`
 
@@ -15,7 +13,7 @@ The **Search Enrichment** service finds merchant product URLs and scrapes additi
   Searches for product URL and enriches data with scraped information.
 </ParamField>
 
-```python
+```python title="function_signature.py"
 async def enrich_product(
     ocr_data: Dict[str, Any],
     cropped_image_base64: Optional[str] = None
@@ -33,27 +31,15 @@ async def enrich_product(
 
 ## How It Works
 
-<Steps>
-  <Step title="1. Query Building">
-    Builds a search query from product name, merchant, and object type.
-  </Step>
+1. **Query Building**: Builds a search query from product name, merchant, and object type.
 
-  <Step title="2. Gemini Search">
-    Uses Gemini Pro with search grounding to find merchant product URLs.
-  </Step>
+2. **Gemini Search**: Uses Gemini Pro with search grounding to find merchant product URLs.
 
-  <Step title="3. Function Calling">
-    If URL found, Gemini calls `scrape_product_images()` function to scrape product images.
-  </Step>
+3. **Function Calling**: If URL found, Gemini calls `scrape_product_images()` function to scrape product images.
 
-  <Step title="4. Validation">
-    Validates results and calculates confidence score (0-100%).
-  </Step>
+4. **Validation**: Validates results and calculates confidence score (0-100%).
 
-  <Step title="5. Return">
-    Returns enriched data only if confidence ≥ 90%.
-  </Step>
-</Steps>
+5. **Return**: Returns enriched data only if confidence ≥ 90%.
 
 ## Architecture
 
@@ -73,24 +59,16 @@ graph TD
 
 ## Service Components
 
-<CardGroup cols={2}>
-  <Card title="Orchestrator" icon="diagram-project">
-    `orchestrator.py` - Main entry point
-  </Card>
-  <Card title="Query Builder" icon="magnifying-glass">
-    `query_builder.py` - Builds search queries
-  </Card>
-  <Card title="Search Handler" icon="brain">
-    `search_handler.py` - Gemini search + function calling
-  </Card>
-  <Card title="Result Validator" icon="check-circle">
-    `result_validator.py` - Validates and scores results
-  </Card>
-</CardGroup>
+| Component | File | Description |
+|-----------|------|-------------|
+| Orchestrator | `orchestrator.py` | Main entry point |
+| Query Builder | `query_builder.py` | Builds search queries |
+| Search Handler | `search_handler.py` | Gemini search + function calling |
+| Result Validator | `result_validator.py` | Validates and scores results |
 
 ## Enriched Data Structure
 
-```json
+```json title="enriched_data.json"
 {
   "merchant_url": "https://example.com/product/123",
   "product_images": [
@@ -119,7 +97,7 @@ graph TD
 
 The query builder creates optimized search queries:
 
-```python
+```python title="query_builder.py"
 def build_search_query(product_name: str, merchant: str, object_type: str) -> str:
     # Example: "leather jacket brand name"
     # Prioritizes: product name + merchant + object type
@@ -139,7 +117,7 @@ def build_search_query(product_name: str, merchant: str, object_type: str) -> st
 
 Gemini uses function calling to trigger web scraping:
 
-```python
+```python title="function_calling.py"
 functions = [
     {
         "name": "scrape_product_images",
@@ -162,24 +140,14 @@ When Gemini finds a product URL, it automatically calls this function to scrape 
 
 ## Confidence Scoring
 
-Results are validated and scored:
-
-<CardGroup cols={2}>
-  <Card title="High Confidence (≥90%)" icon="check-circle">
-    URL found and validated  
-    Images scraped successfully  
-    Data merged with OCR
-  </Card>
-  <Card title="Low Confidence (<90%)" icon="x-circle">
-    URL not found  
-    Scraping failed  
-    Falls back to OCR only
-  </Card>
-</CardGroup>
+| Confidence Level | Criteria |
+|------------------|----------|
+| High (≥90%) | URL found and validated, images scraped successfully, data merged with OCR |
+| Low (<90%) | URL not found, scraping failed, falls back to OCR only |
 
 ## Usage Example
 
-```python
+```python title="usage_example.py"
 from app.services.search_enrichement import enrich_product
 
 # Enrich with OCR data and cropped image
@@ -201,26 +169,18 @@ else:
 
 ## Performance
 
-<CardGroup cols={2}>
-  <Card title="Average Time" icon="clock">
-    5-10 seconds per product
-  </Card>
-  <Card title="Success Rate" icon="check-circle">
-    70%+ (depends on product availability)
-  </Card>
-  <Card title="Confidence Threshold" icon="target">
-    90% minimum
-  </Card>
-  <Card title="Model" icon="brain">
-    Gemini Pro
-  </Card>
-</CardGroup>
+| Metric | Value |
+|--------|-------|
+| Average Time | 5-10 seconds per product |
+| Success Rate | 70%+ (depends on product availability) |
+| Confidence Threshold | 90% minimum |
+| Model | Gemini Pro |
 
 ## Configuration
 
 Add to your `.env` file:
 
-```bash
+```bash title=".env"
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
@@ -228,7 +188,7 @@ The service uses the same Gemini API key as the Crop Service.
 
 ## Dependencies
 
-```txt
+```txt title="requirements.txt"
 google-generativeai>=0.3.0
 beautifulsoup4>=4.12.0
 requests>=2.31.0
@@ -236,53 +196,32 @@ requests>=2.31.0
 
 ## Error Handling
 
-<Warning>
-  The service implements **graceful degradation**:
-  - If search fails → returns `None`, pipeline continues with OCR only
-  - If scraping fails → returns low confidence, pipeline continues
-  - If confidence < 90% → returns empty result, pipeline continues
-  
-  The pipeline never fails due to enrichment errors.
-</Warning>
+The service implements graceful degradation:
+
+- If search fails → returns `None`, pipeline continues with OCR only
+- If scraping fails → returns low confidence, pipeline continues
+- If confidence < 90% → returns empty result, pipeline continues
+
+The pipeline never fails due to enrichment errors.
 
 ## Web Scraping
 
 The scraper (`image_scrapper_service.py`) extracts:
 
-<AccordionGroup>
-  <Accordion title="Product Images">
-    Finds all product images from the merchant page using:
-    - JSON-LD structured data
-    - Open Graph meta tags
-    - HTML img tags with product-related classes
-  </Accordion>
-
-  <Accordion title="Product Metadata">
-    Extracts additional metadata when available:
-    - Product description
-    - Price information
-    - Availability status
-  </Accordion>
-</AccordionGroup>
+| Type | Methods |
+|------|---------|
+| Product Images | JSON-LD structured data, Open Graph meta tags, HTML img tags with product-related classes |
+| Product Metadata | Product description, price information, availability status (when available) |
 
 ## Limitations
 
-<AccordionGroup>
-  <Accordion title="Product Availability">
-    Only works if product is available online and searchable.
-  </Accordion>
+| Limitation | Description |
+|------------|-------------|
+| Product Availability | Only works if product is available online and searchable |
+| Merchant Websites | Some websites may block scraping or require authentication |
+| Search Accuracy | Depends on product name uniqueness and merchant information quality |
 
-  <Accordion title="Merchant Websites">
-    Some websites may block scraping or require authentication.
-  </Accordion>
+## Related Resources
 
-  <Accordion title="Search Accuracy">
-    Depends on product name uniqueness and merchant information quality.
-  </Accordion>
-</AccordionGroup>
-
-## Next Steps
-
-- Check the [API Reference](/api-reference/analyze) to see how enrichment is used
-- Learn about the [Architecture](/architecture) pipeline
-
+- [API Reference](/api-reference/analyze) - See how enrichment is used
+- [Architecture](/architecture) - Learn about the pipeline

@@ -3,40 +3,7 @@ title: Services Overview
 description: "Overview of all services in the Entropi pipeline and their responsibilities."
 ---
 
-## Services Architecture
-
-Entropi's pipeline consists of **4 core services** that work together to transform a screenshot into a structured product record.
-
-<CardGroup cols={2}>
-  <Card
-    title="Image Service"
-    icon="image"
-    href="/services/image-service"
-  >
-    Converts and optimizes images for AI processing
-  </Card>
-  <Card
-    title="OCR Service"
-    icon="eye"
-    href="/services/ocr-service"
-  >
-    Extracts product information using Vision AI
-  </Card>
-  <Card
-    title="Crop Service"
-    icon="crop"
-    href="/services/crop-service"
-  >
-    Intelligently crops product images
-  </Card>
-  <Card
-    title="Search Enrichment"
-    icon="magnifying-glass"
-    href="/services/search-enrichment"
-  >
-    Enriches data with web search and scraping
-  </Card>
-</CardGroup>
+Entropi's pipeline consists of 4 core services that work together to transform a screenshot into a structured product record.
 
 ## Service Flow
 
@@ -52,79 +19,55 @@ graph TD
     D --> D1[Gemini Search]
 ```
 
+## Services
+
+| Service | Description | Link |
+|---------|-------------|------|
+| Image Service | Converts and optimizes images for AI processing | [Image Service](/services/image-service) |
+| OCR Service | Extracts product information using Vision AI | [OCR Service](/services/ocr-service) |
+| Crop Service | Intelligently crops product images | [Crop Service](/services/crop-service) |
+| Search Enrichment | Enriches data with web search and scraping | [Search Enrichment](/services/search-enrichment) |
+
 ## Service Dependencies
 
-<AccordionGroup>
-  <Accordion title="Image Service">
-    **Dependencies**: None (standalone)  
-    **Input**: Raw image bytes + MIME type  
-    **Output**: Base64-encoded JPEG  
-    **Library**: Pillow, pillow-heif
-  </Accordion>
-
-  <Accordion title="OCR Service">
-    **Dependencies**: Image Service output  
-    **Input**: Base64 image  
-    **Output**: Structured product JSON  
-    **API**: Groq (Llama 4 Vision)
-  </Accordion>
-
-  <Accordion title="Crop Service">
-    **Dependencies**: Image Service + OCR Service  
-    **Input**: Base64 image + OCR context  
-    **Output**: Cropped base64 image  
-    **API**: Gemini 2.0 Flash
-  </Accordion>
-
-  <Accordion title="Search Enrichment">
-    **Dependencies**: OCR Service + Crop Service  
-    **Input**: OCR data + cropped image  
-    **Output**: Enriched product data  
-    **API**: Gemini Pro + Web Scraping
-  </Accordion>
-</AccordionGroup>
+| Service | Dependencies | Input | Output | API/Library |
+|---------|--------------|-------|--------|--------------|
+| Image Service | None (standalone) | Raw image bytes + MIME type | Base64-encoded JPEG | Pillow, pillow-heif |
+| OCR Service | Image Service output | Base64 image | Structured product JSON | Groq (Llama 4 Vision) |
+| Crop Service | Image Service + OCR Service | Base64 image + OCR context | Cropped base64 image | Gemini 2.0 Flash |
+| Search Enrichment | OCR Service + Crop Service | OCR data + cropped image | Enriched product data | Gemini Pro + Web Scraping |
 
 ## Service Characteristics
 
 All services are:
 
-<CardGroup cols={3}>
-  <Card title="Stateless" icon="server">
-    No internal state between calls
-  </Card>
-  <Card title="Async" icon="bolt">
-    Fully async/await compatible
-  </Card>
-  <Card title="Error-Resilient" icon="shield">
-    Graceful degradation on failures
-  </Card>
-</CardGroup>
+- **Stateless**: No internal state between calls
+- **Async**: Fully async/await compatible
+- **Error-Resilient**: Graceful degradation on failures
 
 ## Service Files
 
-<CodeGroup>
-```python app/services/image_service.py
+```python title="app/services/image_service.py"
 async def prepare_image_for_ocr(file_bytes: bytes, mime_type: str) -> str
 ```
 
-```python app/services/ocr_service.py
+```python title="app/services/ocr_service.py"
 async def analyze_product_screenshot(base64_image: str) -> Optional[dict]
 ```
 
-```python app/services/image_crop_service.py
+```python title="app/services/image_crop_service.py"
 async def crop_product_image(base64_image: str, ocr_context: Optional[dict]) -> str
 ```
 
-```python app/services/search_enrichement/orchestrator.py
+```python title="app/services/search_enrichement/orchestrator.py"
 async def enrich_product(ocr_data: dict, cropped_image_base64: Optional[str]) -> Optional[dict]
 ```
-</CodeGroup>
 
 ## Integration Example
 
 Here's how services are used together in the pipeline:
 
-```python
+```python title="pipeline_integration.py"
 # Step 1: Image Service
 base64_image = await prepare_image_for_ocr(image_bytes, mime_type)
 
@@ -140,31 +83,16 @@ enrichment_data = await enrich_product(ocr_data, cropped_image)
 
 ## Performance Metrics
 
-<CardGroup cols={2}>
-  <Card title="Image Service" icon="gauge">
-    **Average**: ~200ms  
-    **Success Rate**: 100%
-  </Card>
-  <Card title="OCR Service" icon="gauge">
-    **Average**: ~3-5s  
-    **Success Rate**: 95%+
-  </Card>
-  <Card title="Crop Service" icon="gauge">
-    **Average**: ~2-3s  
-    **Success Rate**: 90%+
-  </Card>
-  <Card title="Search Enrichment" icon="gauge">
-    **Average**: ~5-10s  
-    **Success Rate**: 70%+ (depends on product)
-  </Card>
-</CardGroup>
+| Service | Average Time | Success Rate |
+|---------|--------------|--------------|
+| Image Service | ~200ms | 100% |
+| OCR Service | ~3-5s | 95%+ |
+| Crop Service | ~2-3s | 90%+ |
+| Search Enrichment | ~5-10s | 70%+ (depends on product) |
 
-## Next Steps
-
-Explore each service in detail:
+## Related Resources
 
 - [Image Service](/services/image-service) - Image conversion and optimization
 - [OCR Service](/services/ocr-service) - Product data extraction
 - [Crop Service](/services/crop-service) - Smart image cropping
 - [Search Enrichment](/services/search-enrichment) - Data enrichment
-

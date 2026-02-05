@@ -3,9 +3,7 @@ title: Image Service
 description: "Convert and optimize images for AI processing. Supports HEIC, JPEG, PNG, and WebP formats."
 ---
 
-## Overview
-
-The **Image Service** is the first step in the Entropi pipeline. It converts mobile screenshot formats (especially iOS HEIC) to an AI-friendly format and optimizes them for processing.
+The Image Service is the first step in the Entropi pipeline. It converts mobile screenshot formats (especially iOS HEIC) to an AI-friendly format and optimizes them for processing.
 
 **File**: `app/services/image_service.py`
 
@@ -15,7 +13,7 @@ The **Image Service** is the first step in the Entropi pipeline. It converts mob
   Converts any image format to base64-encoded JPEG optimized for OCR processing.
 </ParamField>
 
-```python
+```python title="function_signature.py"
 async def prepare_image_for_ocr(file_bytes: bytes, mime_type: str) -> str
 ```
 
@@ -30,44 +28,25 @@ async def prepare_image_for_ocr(file_bytes: bytes, mime_type: str) -> str
 
 ## Supported Formats
 
-<CardGroup cols={2}>
-  <Card title="HEIC" icon="mobile-screen">
-    iOS screenshots (primary use case)
-  </Card>
-  <Card title="JPEG" icon="image">
-    Standard JPEG images
-  </Card>
-  <Card title="PNG" icon="image">
-    PNG images
-  </Card>
-  <Card title="WebP" icon="image">
-    WebP format
-  </Card>
-</CardGroup>
+| Format | Description |
+|--------|-------------|
+| HEIC | iOS screenshots (primary use case) |
+| JPEG | Standard JPEG images |
+| PNG | PNG images |
+| WebP | WebP format |
 
 ## Features
 
-<AccordionGroup>
-  <Accordion title="✅ HEIC Conversion">
-    Automatically detects and converts HEIC files to JPEG using `pillow-heif` library.
-  </Accordion>
+| Feature | Description |
+|---------|-------------|
+| HEIC Conversion | Automatically detects and converts HEIC files to JPEG using `pillow-heif` library |
+| Smart Resizing | Resizes images to a maximum of 2048x2048px while maintaining aspect ratio. Uses high-quality LANCZOS resampling |
+| Quality Optimization | Converts all images to RGB color space and saves as JPEG with 95% quality for optimal balance between size and quality |
+| Base64 Encoding | Encodes the final JPEG as base64 string for easy transmission to AI APIs |
 
-  <Accordion title="✅ Smart Resizing">
-    Resizes images to a maximum of 2048x2048px while maintaining aspect ratio. Uses high-quality LANCZOS resampling.
-  </Accordion>
+## Implementation
 
-  <Accordion title="✅ Quality Optimization">
-    Converts all images to RGB color space and saves as JPEG with 95% quality for optimal balance between size and quality.
-  </Accordion>
-
-  <Accordion title="✅ Base64 Encoding">
-    Encodes the final JPEG as base64 string for easy transmission to AI APIs.
-  </Accordion>
-</AccordionGroup>
-
-## Implementation Details
-
-```python
+```python title="app/services/image_service.py"
 import base64
 import io
 import pillow_heif
@@ -103,7 +82,7 @@ async def prepare_image_for_ocr(file_bytes: bytes, mime_type: str) -> str:
 
 ## Usage Example
 
-```python
+```python title="usage_example.py"
 from app.services.image_service import prepare_image_for_ocr
 
 # In your FastAPI route
@@ -121,24 +100,16 @@ async def upload_screenshot(file: UploadFile):
 
 ## Performance
 
-<CardGroup cols={2}>
-  <Card title="Average Time" icon="clock">
-    ~200ms per image
-  </Card>
-  <Card title="Success Rate" icon="check-circle">
-    100% (tested on 8+ formats)
-  </Card>
-  <Card title="Output Size" icon="file">
-    ~240-340KB base64
-  </Card>
-  <Card title="Max Input Size" icon="file">
-    Up to 10MB supported
-  </Card>
-</CardGroup>
+| Metric | Value |
+|--------|-------|
+| Average Time | ~200ms per image |
+| Success Rate | 100% (tested on 8+ formats) |
+| Output Size | ~240-340KB base64 |
+| Max Input Size | Up to 10MB supported |
 
 ## Dependencies
 
-```txt
+```txt title="requirements.txt"
 pillow>=10.0.0
 pillow-heif>=0.13.0
 ```
@@ -152,29 +123,26 @@ pip install pillow pillow-heif
 
 The service will raise exceptions if:
 
-<Warning>
-  - Invalid image format (not supported)
-  - Corrupted image file
-  - Memory issues with very large images
-</Warning>
+- Invalid image format (not supported)
+- Corrupted image file
+- Memory issues with very large images
 
 In the pipeline, these errors result in HTTP 422 responses.
 
 ## Output Format
 
-The service returns a **plain base64 string** (not a data URI). To use it with AI APIs, you'll need to add the prefix:
+The service returns a plain base64 string (not a data URI). To use it with AI APIs, you'll need to add the prefix:
 
-```python
+```python title="data_uri_example.py"
 base64_image = await prepare_image_for_ocr(image_bytes, mime_type)
 data_uri = f"data:image/jpeg;base64,{base64_image}"
 ```
 
-<Tip>
+<Note>
   The OCR service automatically adds the data URI prefix, so you can pass the base64 string directly.
-</Tip>
+</Note>
 
-## Next Steps
+## Related Resources
 
-- Learn about the [OCR Service](/services/ocr-service) that uses this output
-- Check the [Architecture](/architecture) to see how services connect
-
+- [OCR Service](/services/ocr-service) - Uses this output
+- [Architecture](/architecture) - See how services connect

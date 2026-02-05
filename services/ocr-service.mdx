@@ -3,9 +3,7 @@ title: OCR Service
 description: "Extract structured product information from screenshots using Groq's Llama 4 Vision model."
 ---
 
-## Overview
-
-The **OCR Service** extracts product information from screenshots using AI vision models. It uses Groq's Llama 4 Maverick model to analyze images and return structured JSON data.
+The OCR Service extracts product information from screenshots using AI vision models. It uses Groq's Llama 4 Maverick model to analyze images and return structured JSON data.
 
 **File**: `app/services/ocr_service.py`
 
@@ -15,7 +13,7 @@ The **OCR Service** extracts product information from screenshots using AI visio
   Analyzes a base64-encoded image and extracts product information as structured JSON.
 </ParamField>
 
-```python
+```python title="function_signature.py"
 async def analyze_product_screenshot(base64_image: str) -> Optional[dict]
 ```
 
@@ -57,7 +55,7 @@ async def analyze_product_screenshot(base64_image: str) -> Optional[dict]
 
 ## Example Response
 
-```json
+```json title="example_response.json"
 {
   "name": "UBURN - LA BOISSON VIOLETTE ANTI-FRINGALES",
   "price": 34.5,
@@ -73,7 +71,7 @@ async def analyze_product_screenshot(base64_image: str) -> Optional[dict]
 
 ## Implementation
 
-```python
+```python title="app/services/ocr_service.py"
 import json
 import os
 from openai import AsyncOpenAI
@@ -111,24 +109,16 @@ async def analyze_product_screenshot(base64_image: str) -> Optional[dict]:
 
 ## Model Configuration
 
-<CardGroup cols={2}>
-  <Card title="Model" icon="brain">
-    `meta-llama/llama-4-maverick-17b-128e-instruct`
-  </Card>
-  <Card title="Provider" icon="cloud">
-    Groq Cloud
-  </Card>
-  <Card title="Temperature" icon="thermometer">
-    0.1 (for consistent extraction)
-  </Card>
-  <Card title="Output Format" icon="code">
-    JSON Object
-  </Card>
-</CardGroup>
+| Setting | Value |
+|---------|-------|
+| Model | `meta-llama/llama-4-maverick-17b-128e-instruct` |
+| Provider | Groq Cloud |
+| Temperature | 0.1 (for consistent extraction) |
+| Output Format | JSON Object |
 
 ## Usage Example
 
-```python
+```python title="usage_example.py"
 from app.services.image_service import prepare_image_for_ocr
 from app.services.ocr_service import analyze_product_screenshot
 
@@ -151,26 +141,18 @@ async def process_screenshot(file: UploadFile):
 
 ## Performance
 
-<CardGroup cols={2}>
-  <Card title="Average Time" icon="clock">
-    3-5 seconds per image
-  </Card>
-  <Card title="Success Rate" icon="check-circle">
-    95%+ (tested on 8+ diverse screenshots)
-  </Card>
-  <Card title="Supported Sources" icon="mobile-screen">
-    Instagram, TikTok, e-commerce, web
-  </Card>
-  <Card title="Accuracy" icon="target">
-    High for clear screenshots
-  </Card>
-</CardGroup>
+| Metric | Value |
+|--------|-------|
+| Average Time | 3-5 seconds per image |
+| Success Rate | 95%+ (tested on 8+ diverse screenshots) |
+| Supported Sources | Instagram, TikTok, e-commerce, web |
+| Accuracy | High for clear screenshots |
 
 ## Configuration
 
 Add to your `.env` file:
 
-```bash
+```bash title=".env"
 OCR_API_KEY=gsk_your_groq_api_key_here
 ```
 
@@ -178,7 +160,7 @@ Get your API key from: [Groq Console](https://console.groq.com)
 
 ## Dependencies
 
-```txt
+```txt title="requirements.txt"
 groq>=0.4.0
 openai>=1.0.0  # Used for Groq compatibility
 ```
@@ -190,15 +172,14 @@ pip install groq openai
 
 ## Error Handling
 
-<Warning>
-  The service returns `None` if:
-  - API call fails
-  - Invalid image format
-  - Network errors
-  - Rate limiting
-  
-  In the pipeline, this results in HTTP 422 responses.
-</Warning>
+The service returns `None` if:
+
+- API call fails
+- Invalid image format
+- Network errors
+- Rate limiting
+
+In the pipeline, this results in HTTP 422 responses.
 
 ## System Prompt
 
@@ -209,28 +190,19 @@ The service uses a carefully crafted system prompt (`PRODUCT_EXTRACTION_SYSTEM_P
 - Return valid JSON format
 - Handle missing fields gracefully
 
-<Tip>
+<Note>
   The system prompt is defined in `app/core/prompts.py` and can be customized for your use case.
-</Tip>
+</Note>
 
 ## Limitations
 
-<AccordionGroup>
-  <Accordion title="Image Quality">
-    Works best with clear, high-resolution screenshots. Blurry or low-quality images may reduce accuracy.
-  </Accordion>
+| Limitation | Description |
+|------------|-------------|
+| Image Quality | Works best with clear, high-resolution screenshots. Blurry or low-quality images may reduce accuracy |
+| Language Support | Primarily optimized for English and French. Other languages may have reduced accuracy |
+| Complex Layouts | Very complex or cluttered screenshots may confuse the model. Simple product pages work best |
 
-  <Accordion title="Language Support">
-    Primarily optimized for English and French. Other languages may have reduced accuracy.
-  </Accordion>
+## Related Resources
 
-  <Accordion title="Complex Layouts">
-    Very complex or cluttered screenshots may confuse the model. Simple product pages work best.
-  </Accordion>
-</AccordionGroup>
-
-## Next Steps
-
-- Learn about the [Crop Service](/services/crop-service) that uses OCR context
-- Check the [Search Enrichment](/services/search-enrichment) service that enriches OCR data
-
+- [Crop Service](/services/crop-service) - Uses OCR context
+- [Search Enrichment](/services/search-enrichment) - Enriches OCR data
