@@ -7,13 +7,31 @@ Entropi is a visual bookmarking platform that extracts product information from 
 
 ## Features
 
-| Feature | Description |
-|---------|-------------|
-| Multi-Format Support | Supports HEIC (iOS), JPEG, PNG, and WebP formats. Automatically converts and optimizes images for AI processing. |
-| AI-Powered OCR | Uses Groq's Llama 4 Vision model to extract structured product data from screenshots. |
-| Smart Cropping | Gemini 2.0 Flash detects and crops the main product from screenshots, removing UI elements. |
-| Search Enrichment | Automatically searches for product URLs and scrapes additional images and metadata using Gemini's function calling. |
-| PostgreSQL Storage | All products are stored in a PostgreSQL database with full relational support for lists and collections. |
+<CardGroup cols={2}>
+  <Card title="Multi-Format Support" icon="image">
+    Supports HEIC (iOS), JPEG, PNG, and WebP formats. Automatically converts and optimizes images for AI processing.
+  </Card>
+  
+  <Card title="AI-Powered OCR" icon="brain">
+    Uses Groq's Llama 4 Vision model to extract structured product data from screenshots.
+  </Card>
+  
+  <Card title="Smart Cropping" icon="crop">
+    Gemini 2.0 Flash detects and crops the main product from screenshots, removing UI elements.
+  </Card>
+  
+  <Card title="Search Enrichment" icon="magnifying-glass">
+    Automatically searches for product URLs and scrapes additional images and metadata using Gemini's function calling.
+  </Card>
+  
+  <Card title="PostgreSQL Storage" icon="database">
+    All products are stored in a PostgreSQL database with full relational support for lists and collections.
+  </Card>
+  
+  <Card title="RESTful API" icon="code">
+    FastAPI-based REST API with automatic OpenAPI documentation and type validation.
+  </Card>
+</CardGroup>
 
 ## How It Works
 
