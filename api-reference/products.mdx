@@ -1,0 +1,231 @@
+---
+title: Get Product
+description: "Fetch a product by ID. Used to poll the optimistic pipeline until status is ready or stumped."
+---
+
+## Endpoint
+
+```http
+GET /products/{product_id}
+```
+
+## Overview
+
+Returns a single product row by ID. Primary use case: **polling the
+status** of a product created via
+[`POST /pipeline/analyze`](/api-reference/analyze) while its background
+pipeline is still running.
+
+## Request
+
+### Authentication
+
+```http
+Authorization: Bearer <access_token>
+```
+
+### Path parameters
+
+<ParamField path="product_id" type="integer" required>
+  The product ID returned by `POST /pipeline/analyze` (or any other
+  endpoint that creates products).
+</ParamField>
+
+### cURL
+
+<CodeGroup>
+```bash cURL
+curl -X GET "http://localhost:8000/products/42" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+```python Python
+import requests
+
+resp = requests.get(
+    f"http://localhost:8000/products/{product_id}",
+    headers={"Authorization": f"Bearer {TOKEN}"},
+)
+resp.raise_for_status()
+product = resp.json()
+```
+
+```javascript JavaScript
+const res = await fetch(`http://localhost:8000/products/${productId}`, {
+  headers: { Authorization: `Bearer ${token}` },
+});
+const product = await res.json();
+```
+</CodeGroup>
+
+## Response — 200 OK
+
+### While the pipeline runs
+
+```json
+{
+  "id": 42,
+  "status": "framing",
+  "name": null,
+  "price": null,
+  "currency": null,
+  "description": null,
+  "image_url": null,
+  "merchant": null,
+  "product_url": null,
+  "category": null,
+  "tags": null,
+  "object_type": null,
+  "error_message": null,
+  "created_at": "2026-04-25T02:39:26.359572-07:00"
+}
+```
+
+### When the pipeline completes (`ready`)
+
+```json
+{
+  "id": 42,
+  "status": "ready",
+  "name": "Headliner (Gen 2)",
+  "price": 459.0,
+  "currency": "EUR",
+  "description": "...",
+  "image_url": "data:image/jpeg;base64,/9j/...",
+  "merchant": "Ray-Ban | Meta",
+  "product_url": "https://ray-ban.com/...",
+  "category": "eyewear",
+  "tags": "sunglasses, smart, ...",
+  "object_type": "sunglasses",
+  "error_message": null,
+  "created_at": "2026-04-25T02:39:26.359572-07:00"
+}
+```
+
+### When the pipeline fails (`stumped`)
+
+```json
+{
+  "id": 42,
+  "status": "stumped",
+  "name": null,
+  "price": null,
+  "error_message": "OCR failed: cannot identify image file",
+  "created_at": "2026-04-25T02:39:26.359572-07:00"
+}
+```
+
+## Fields
+
+<ParamField body="id" type="integer">
+  Product ID.
+</ParamField>
+
+<ParamField body="status" type="string">
+  One of `peeking` (OCR + bbox running), `framing` (local Pillow crop —
+  near-instant), `sleuthing` (enrichment, 15&nbsp;s hard cap),
+  `ready`, or `stumped`. See the
+  [status lifecycle](/api-reference/analyze#status-lifecycle).
+</ParamField>
+
+<ParamField body="error_message" type="string | null">
+  Populated when `status = stumped`. Human-readable description of the
+  failure. `null` otherwise.
+</ParamField>
+
+<ParamField body="name" type="string | null">
+  Product name (OCR output). `null` until `status = ready`.
+</ParamField>
+
+<ParamField body="price" type="float | null">
+  Product price. `null` until `status = ready`.
+</ParamField>
+
+<ParamField body="currency" type="string | null">
+  Currency code (`EUR`, `USD`, ...). `null` until `status = ready`.
+</ParamField>
+
+<ParamField body="description" type="string | null">
+  Product description extracted from the screenshot.
+</ParamField>
+
+<ParamField body="image_url" type="string | null">
+  Base64 data-URI of the cropped product image.
+</ParamField>
+
+<ParamField body="merchant" type="string | null">
+  Brand or merchant name.
+</ParamField>
+
+<ParamField body="product_url" type="string | null">
+  Merchant product URL (from search enrichment, if high confidence).
+</ParamField>
+
+<ParamField body="category" type="string | null">
+  Product category.
+</ParamField>
+
+<ParamField body="tags" type="string | null">
+  Comma-separated tags. Includes `search_confidence:<int>` when
+  enrichment succeeded; absent when the product fell back to OCR-only
+  (enrichment timeout, exception, or open circuit breaker).
+</ParamField>
+
+<ParamField body="object_type" type="string | null">
+  Canonical object type (e.g. `sneaker`, `jumper`, `sunglasses`).
+</ParamField>
+
+<ParamField body="created_at" type="timestamp">
+  Product row creation timestamp (ISO 8601 with timezone).
+</ParamField>
+
+## Error responses
+
+### 401 Unauthorized
+
+Missing or invalid bearer token.
+
+### 404 Not Found
+
+No product with that ID exists.
+
+```json
+{ "detail": "Product not found" }
+```
+
+## Polling recommendations
+
+<CardGroup cols={2}>
+  <Card title="Share sheet / upload from gallery" icon="images">
+    Poll every **500&nbsp;ms to 1&nbsp;s**. Users are likely on a list view
+    and are not staring at the screen.
+  </Card>
+  <Card title="In-app camera capture" icon="camera">
+    Poll every **300&nbsp;ms**. User is waiting on the screen; feedback
+    latency is critical. A dedicated SSE stream is planned (ticket I038).
+  </Card>
+</CardGroup>
+
+<Tip>
+  Stop polling as soon as `status` is `ready` or `stumped`. These are
+  terminal states — further polling will only return the same payload.
+</Tip>
+
+### Example polling loop
+
+```bash
+while :; do
+  resp=$(curl -s "http://localhost:8000/products/$PID" \
+    -H "Authorization: Bearer $TOKEN")
+  status=$(echo "$resp" | jq -r .status)
+  echo "$(date +%H:%M:%S) $status"
+  [[ "$status" == "ready" || "$status" == "stumped" ]] && break
+  sleep 0.5
+done
+```
+
+## Next steps
+
+- [`POST /pipeline/analyze`](/api-reference/analyze) — the endpoint that
+  produces the `product_id` you poll here.
+- [Authentication](/api-reference/authentication) — how to obtain a token.

@@ -1,0 +1,67 @@
+---
+title: Upgrades
+description: "How to move an Entropi install to a newer version without losing data."
+---
+
+## When to upgrade
+
+Upgrade when a release lands in the [Changelog](/changelog) that you need (bug fix, new endpoint, performance improvement). There is no automatic update mechanism — you pull, install, migrate, restart.
+
+## Steps
+
+<Steps>
+  <Step title="Read the changelog entry">
+    Open the [Changelog](/changelog) for the target version. Look for a **Migration notes** section. If present, it overrides the generic flow below.
+  </Step>
+  <Step title="Back up the database">
+    Always back up before applying migrations.
+
+    ```bash
+    pg_dump palme > palme-$(date +%Y%m%d-%H%M%S).sql
+    ```
+  </Step>
+  <Step title="Pull the new code">
+    ```bash
+    git fetch --tags
+    git checkout <target-tag>
+    ```
+  </Step>
+  <Step title="Update dependencies">
+    ```bash
+    source venv/bin/activate
+    pip install -r requirements.txt
+    ```
+  </Step>
+  <Step title="Apply database migrations">
+    ```bash
+    alembic upgrade head
+    ```
+
+    Review the migration files under `alembic/versions/` first if the changelog flagged a schema change.
+  </Step>
+  <Step title="Restart the server">
+    Stop the running process and restart it (`uvicorn` or `gunicorn`, whichever you use).
+  </Step>
+  <Step title="Verify">
+    Health-check the API and run a smoke test (the [Quickstart](/getting-started/quickstart) flow is sufficient).
+  </Step>
+</Steps>
+
+## Rolling back
+
+If an upgrade misbehaves:
+
+1. Stop the server.
+2. Restore the database backup: `psql palme < palme-<timestamp>.sql`.
+3. `git checkout <previous-tag>`.
+4. `pip install -r requirements.txt`.
+5. Restart.
+
+Alembic supports `alembic downgrade <revision>` for schema rollback, but a `pg_dump` restore is safer for non-trivial migrations.
+
+## Common mistakes
+
+- **Skipping `pg_dump`** — you cannot un-run a destructive migration.
+- **Pulling `main` instead of a tag** — `main` may contain unreleased work. Always check out a release tag.
+- **Forgetting `pip install`** — new code often needs new dependencies. The server will fail at import time if you skip it.
+- **Restarting before migrations finish** — Alembic blocks; let it finish before bouncing the process.

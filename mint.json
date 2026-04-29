@@ -11,43 +11,65 @@
     "light": "#FFFFFF",
     "dark": "#000000",
     "background": {
-      "dark": "#0A0A0A",
-      "light": "#FFFFFF"
+      "light": "#FAFAF7",
+      "dark": "#000000"
     },
     "anchors": {
       "from": "#000000",
-      "to": "#404040"
+      "to": "#000000"
     }
-  },
-  "topbarLinks": [
-    {
-      "name": "GitHub",
-      "url": "https://github.com/entropi-org"
-    }
-  ],
-  "topbarCtaButton": {
-    "name": "Get Started",
-    "url": "https://app.entropi.com"
   },
   "navigation": [
     {
       "group": "Getting Started",
       "pages": [
         "introduction",
-        "setup/installation",
-        "setup/configuration"
+        "getting-started/quickstart",
+        "getting-started/core-concepts"
       ]
     },
     {
-      "group": "Architecture",
+      "group": "Using AI at Entropi",
+      "pages": [
+        "using-ai"
+      ]
+    },
+    {
+      "group": "Guides",
+      "pages": [
+        "guides/analyze-a-screenshot",
+        "guides/poll-for-results",
+        "guides/handle-failures",
+        "guides/run-tests"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/authentication",
+        "api-reference/analyze",
+        "api-reference/products"
+      ]
+    },
+    {
+      "group": "Configuration",
+      "pages": [
+        "configuration/environment-variables"
+      ]
+    },
+    {
+      "group": "Self-Hosting",
+      "pages": [
+        "self-hosting/requirements",
+        "self-hosting/installation",
+        "self-hosting/upgrades"
+      ]
+    },
+    {
+      "group": "Reference",
       "pages": [
         "architecture",
-        "database"
-      ]
-    },
-    {
-      "group": "Services",
-      "pages": [
+        "database",
         "services/overview",
         "services/image-service",
         "services/ocr-service",
@@ -56,15 +78,10 @@
       ]
     },
     {
-      "group": "API Reference",
+      "group": "Changelog",
       "pages": [
-        "api-reference/analyze",
-        "api-reference/authentication"
+        "changelog"
       ]
     }
-  ],
-  "footerSocials": {
-    "github": "https://github.com/entropi-org"
-  }
+  ]
 }
-

@@ -1,0 +1,85 @@
+---
+title: Analyze a screenshot
+description: "Submit an image to the pipeline and get back a structured product."
+---
+
+## Context
+
+You have a product screenshot (from a phone, a website, or a social feed) and want Entropi to extract structured product data from it. This is the canonical use case.
+
+The flow is two HTTP calls: a `POST` to submit, then a `GET` (polled) to retrieve the result.
+
+## Steps
+
+<Steps>
+  <Step title="Authenticate">
+    You need a JWT. See [Authentication](/api-reference/authentication) if you do not have one yet.
+
+    ```bash
+    TOKEN=$(curl -s -X POST http://localhost:8000/auth/login \
+      -H "Content-Type: application/json" \
+      -d '{"username":"you@example.com","password":"..."}' \
+      | jq -r .access_token)
+    ```
+  </Step>
+
+  <Step title="Pick a list">
+    Every product belongs to a list. If you do not have one yet, create it.
+
+    ```bash
+    LIST_ID=$(curl -s -X POST http://localhost:8000/lists/ \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{"name":"Inbox"}' \
+      | jq -r .id)
+    ```
+  </Step>
+
+  <Step title="Submit the screenshot">
+    `POST /pipeline/analyze` accepts multipart/form-data with `list_id` and `file` fields.
+
+    ```bash
+    PID=$(curl -s -X POST http://localhost:8000/pipeline/analyze \
+      -H "Authorization: Bearer $TOKEN" \
+      -F "list_id=$LIST_ID" \
+      -F "file=@screenshot.jpg" \
+      | jq -r .id)
+    ```
+
+    Accepted formats: HEIC, JPEG, PNG, WebP. Maximum size: 10&nbsp;MB.
+  </Step>
+
+  <Step title="Poll for completion">
+    See [Poll for results](/guides/poll-for-results) for the recommended cadence and stop conditions.
+  </Step>
+</Steps>
+
+## Expected result
+
+A `ready` product looks like this:
+
+```json
+{
+  "id": 42,
+  "status": "ready",
+  "name": "Headliner (Gen 2)",
+  "price": 459.0,
+  "currency": "EUR",
+  "merchant": "Ray-Ban | Meta",
+  "product_url": "https://ray-ban.com/...",
+  "category": "eyewear",
+  "tags": "sunglasses, smart, search_confidence:92",
+  "object_type": "sunglasses",
+  "image_url": "data:image/jpeg;base64,/9j/...",
+  "error_message": null,
+  "created_at": "2026-04-25T02:39:26.359572-07:00"
+}
+```
+
+## Common mistakes
+
+- **Forgetting `list_id`** — the request returns 422 with no product row created.
+- **Submitting an image larger than 10&nbsp;MB** — returns 413 with no product row created.
+- **Treating `peeking` as a failure** — it is the initial state, not an error. Keep polling.
+- **Polling too aggressively** — anything below 300&nbsp;ms wastes server cycles. See [Poll for results](/guides/poll-for-results).
+- **Assuming `ready` means enriched** — a product that fell back to OCR-only also reaches `ready`. Check for `search_confidence:<n>` in `tags`.

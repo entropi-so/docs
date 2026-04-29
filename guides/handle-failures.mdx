@@ -1,0 +1,83 @@
+---
+title: Handle failures
+description: "What can go wrong, how Entropi reports it, and what the client should do about it."
+---
+
+## Context
+
+Entropi's pipeline has two failure surfaces:
+
+1. **Synchronous errors** — caught before the background task spawns. Returned as a 4xx/5xx HTTP response. No product row is created.
+2. **Asynchronous errors** — caught inside the pipeline. Reported via `status: "stumped"` on the polled product. The row exists, populated only with `id`, `status`, `error_message`, and `created_at`.
+
+Both must be handled. Treat them as different failure classes.
+
+## Steps
+
+<Steps>
+  <Step title="Inspect the immediate HTTP response">
+    Anything that is not a `201 Created` from `POST /pipeline/analyze` is a synchronous failure. Read [Failure modes](/api-reference/analyze#failure-modes) for the full list.
+  </Step>
+  <Step title="If you got a 201, poll until terminal">
+    See [Poll for results](/guides/poll-for-results).
+  </Step>
+  <Step title="On `status: stumped`, read error_message">
+    The message is human-readable. The most common cause is OCR being unable to extract a product name (blurry image, unrelated content, unreadable text).
+  </Step>
+  <Step title="Decide whether to retry">
+    Some failures are user-actionable (resubmit a clearer image). Others are infrastructure (DB down, provider outage). The error message tells you which.
+  </Step>
+</Steps>
+
+## Synchronous failures
+
+| Status | Cause                                                                                  | Client action                                       |
+| ------ | -------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| 401    | Missing or invalid bearer token.                                                       | Re-authenticate.                                    |
+| 403    | The `list_id` does not belong to the authenticated user.                               | Use a list owned by the caller.                     |
+| 404    | The `list_id` does not exist.                                                          | Create or pick a valid list.                        |
+| 413    | File exceeds 10&nbsp;MB.                                                               | Compress or resize before resubmitting.             |
+| 500    | Failure to persist the optimistic row (typically a DB connectivity issue).             | Retry with backoff. Escalate if it persists.        |
+
+## Asynchronous failures
+
+The pipeline only sets `stumped` on **OCR failure**. Crop and enrichment failures fall back gracefully — see [Graceful degradation](/getting-started/core-concepts#3-graceful-degradation).
+
+```json
+{
+  "id": 42,
+  "status": "stumped",
+  "error_message": "OCR failed: cannot identify image file",
+  "name": null,
+  ...
+}
+```
+
+Common `error_message` values:
+
+- `OCR failed: cannot identify image file` — unsupported codec or corrupted bytes.
+- `OCR returned no product name` — the image does not contain a recognizable product.
+- `Vision provider error: <details>` — Gemini upstream failure. Retry after a short delay.
+
+## Detecting OCR-only fallback
+
+A product can reach `ready` without enrichment data (timeout, breaker open, low confidence). Detect this by checking the `tags` field for `search_confidence:<n>`. If it is absent, the product fell back to OCR-only.
+
+```python
+def is_enriched(product: dict) -> bool:
+    return "search_confidence:" in (product.get("tags") or "")
+```
+
+## Common mistakes
+
+- **Retrying a `413` automatically** — the file is too large. Resize it client-side first.
+- **Treating `stumped` as a transient error and retrying immediately** — most `stumped` results are deterministic (the image cannot be parsed). Only retry after the user changes the input.
+- **Surfacing raw `error_message` to end users** — it is engineer-readable, not user-facing. Map it to a UX-appropriate message in the client.
+
+## Durability caveat
+
+<Warning>
+  Background tasks are scheduled with `asyncio.create_task` and are not persisted across server restarts. A product still in `peeking`, `framing`, or `sleuthing` when the server restarts will be orphaned in that intermediate status. A durable queue is tracked under ticket I039.
+</Warning>
+
+Clients that survive a server restart should treat any product stuck in a non-terminal status for more than 30&nbsp;s as orphaned and surface it as a soft failure.

@@ -1,0 +1,99 @@
+---
+title: Quickstart
+description: "Register, log in, upload a screenshot, and poll until the product is ready. Five minutes, no assumptions."
+---
+
+This page assumes Entropi is running locally on `http://localhost:8000`. If it is not, follow the [Self-Hosting installation guide](/self-hosting/installation) first.
+
+You will need `curl` and `jq`.
+
+<Steps>
+  <Step title="Register a user">
+    ```bash
+    curl -s -X POST http://localhost:8000/auth/register \
+      -H "Content-Type: application/json" \
+      -d '{
+        "username": "you",
+        "email": "you@example.com",
+        "password": "a-strong-password"
+      }'
+    ```
+
+    A `201 Created` response confirms the user exists.
+  </Step>
+
+  <Step title="Log in and store the token">
+    ```bash
+    TOKEN=$(curl -s -X POST http://localhost:8000/auth/login \
+      -H "Content-Type: application/json" \
+      -d '{"username":"you@example.com","password":"a-strong-password"}' \
+      | jq -r .access_token)
+    ```
+
+    The token is a JWT. It expires after 7 days by default.
+  </Step>
+
+  <Step title="Create a list">
+    Every product belongs to a list (a board, a wishlist, a project — whatever the client calls it).
+
+    ```bash
+    LIST_ID=$(curl -s -X POST http://localhost:8000/lists/ \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{"name":"Quickstart"}' \
+      | jq -r .id)
+    ```
+  </Step>
+
+  <Step title="Upload a product screenshot">
+    ```bash
+    PID=$(curl -s -X POST http://localhost:8000/pipeline/analyze \
+      -H "Authorization: Bearer $TOKEN" \
+      -F "list_id=$LIST_ID" \
+      -F "file=@screenshot.jpg" \
+      | jq -r .id)
+
+    echo "product_id=$PID"
+    ```
+
+    This returns in under 500&nbsp;ms with `status: "peeking"`. The pipeline is now running in the background.
+  </Step>
+
+  <Step title="Poll until the pipeline finishes">
+    ```bash
+    while :; do
+      resp=$(curl -s "http://localhost:8000/products/$PID" \
+        -H "Authorization: Bearer $TOKEN")
+      status=$(echo "$resp" | jq -r .status)
+      echo "$(date +%H:%M:%S) $status"
+      [[ "$status" == "ready" || "$status" == "stumped" ]] && echo "$resp" | jq && break
+      sleep 0.5
+    done
+    ```
+
+    Expect the product to reach `ready` in 6&ndash;14&nbsp;s. If it ends in `stumped`, read the `error_message`.
+  </Step>
+</Steps>
+
+## What you just did
+
+You exercised the full Entropi pipeline: authentication, list creation, optimistic ingestion, and polling.
+
+The endpoint `POST /pipeline/analyze` is **optimistic**: it commits a row immediately and runs OCR, crop, and enrichment after the response is sent. Clients are expected to poll `GET /products/{id}` until they see a terminal status (`ready` or `stumped`).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Core Concepts" icon="book" href="/getting-started/core-concepts">
+    The mental models behind the optimistic pipeline.
+  </Card>
+  <Card title="Analyze API" icon="code" href="/api-reference/analyze">
+    Full reference for `POST /pipeline/analyze`.
+  </Card>
+  <Card title="Polling reference" icon="rotate" href="/api-reference/products">
+    Full reference for `GET /products/{id}`.
+  </Card>
+  <Card title="Failure modes" icon="triangle-exclamation" href="/guides/handle-failures">
+    What `stumped` actually means and how to recover.
+  </Card>
+</CardGroup>

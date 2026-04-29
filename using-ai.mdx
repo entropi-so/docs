@@ -1,0 +1,107 @@
+---
+title: Using AI at Entropi
+description: "How we use AI tools day-to-day, what we recommend, and how to get good output."
+---
+
+## Our position
+
+We use AI to write, review, and refactor code. It is expected and encouraged across the team. Treating AI as optional in 2026 is treating yourself as optional.
+
+This is not a policy page. It is a working guide. The shape of it will change as the tools change.
+
+The rules of thumb:
+
+- The model is a fast, lossy collaborator. You stay accountable for what ships.
+- Context beats cleverness. A model with the right files in front of it outperforms a smarter model groping in the dark.
+- If the AI is hallucinating, you have not given it enough context.
+
+## Recommended tools
+
+<CardGroup cols={3}>
+  <Card title="Claude Code" icon="terminal">
+    Primary recommendation. Terminal-native agent that reads, writes, and runs code. Use it for everything from one-shot edits to multi-file refactors.
+  </Card>
+  <Card title="Goose" icon="ghost">
+    Open-source agent from Block. Good when you want a self-hostable alternative or are wiring custom MCP servers.
+  </Card>
+  <Card title="Antigravity" icon="rocket">
+    Google&apos;s agentic IDE. Use when you want the editor and the agent in the same surface, or when you are working primarily inside Google&apos;s stack.
+  </Card>
+</CardGroup>
+
+Pick one as your daily driver. Switching between three tools costs more than the marginal capability gain.
+
+## Our own tool
+
+We are building an internal coding tool tailored to the Entropi codebase. It is not ready yet. Details will land here when it is. Until then, use Claude Code.
+
+## How to work effectively with AI at Entropi
+
+### Always load `context.md`
+
+Every AI session must start by feeding it the project's `context.md`. This file describes the codebase, the conventions, and the moving pieces — without it, the model will invent structure that does not exist.
+
+`context.md` lives at the repository root. Pass it as the first piece of context in your session.
+
+```bash
+# Claude Code
+claude --context-files context.md
+
+# Goose
+goose session --add-file context.md
+
+# Antigravity
+# Drop context.md into the project context panel.
+```
+
+If `context.md` is stale, regenerate it (see the `context-creator` skill below) before starting work. A wrong context file is worse than no context file.
+
+### Give your AI the documentation
+
+This documentation site exists for humans and for models. Before asking the AI to touch a feature, point it at the relevant section.
+
+- Working on the pipeline? Load [Core Concepts](/getting-started/core-concepts) and [Architecture](/architecture).
+- Adding an endpoint? Load the matching [API Reference](/api-reference/analyze) page and [Run tests](/guides/run-tests).
+- Touching enrichment? Load [Search Enrichment](/services/search-enrichment).
+
+The more grounded the context, the less the model fabricates.
+
+### Required skills to activate
+
+Three skills are non-negotiable for Entropi work. Activate them at the start of every session.
+
+<CardGroup cols={3}>
+  <Card title="security-reviewer" icon="shield">
+    Reviews diffs for credential leaks, injection vectors, missing auth, and unsafe deserialization before code ships. Run it before every commit.
+  </Card>
+  <Card title="context-creator" icon="file-lines">
+    Builds and maintains `context.md`. Run it after meaningful structural changes — new services, schema migrations, renamed modules.
+  </Card>
+  <Card title="palme-plan-mode" icon="list-check">
+    Structured planning mode. Forces the model to produce a written plan with files, steps, and risks before writing a single line of code.
+  </Card>
+</CardGroup>
+
+### Recommended workflow
+
+<Steps>
+  <Step title="Load context.md into your AI tool">
+    First action of every session. No exceptions.
+  </Step>
+  <Step title="Activate the relevant skills">
+    `security-reviewer`, `context-creator`, and `palme-plan-mode` should all be on by default.
+  </Step>
+  <Step title="Provide the relevant documentation section as context">
+    Open the page that matches the task and pass it to the model. If no page matches, that is a documentation gap — flag it.
+  </Step>
+  <Step title="Define the task clearly before asking the AI to write code">
+    Use `palme-plan-mode`. Read the plan. Push back on it. Only approve once the steps and acceptance criteria are explicit.
+  </Step>
+  <Step title="Review output with security-reviewer before committing">
+    Run `security-reviewer` against the diff. Resolve every finding or document why it is acceptable. Then commit.
+  </Step>
+</Steps>
+
+<Note>
+  Skip steps at your own risk. Most of the bugs we have caught in AI-generated code came from sessions that started without a plan or shipped without a security review.
+</Note>

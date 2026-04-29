@@ -1,0 +1,147 @@
+---
+title: Installation
+description: "Set up Entropi on a host that meets the requirements."
+---
+
+This guide assumes you have already read [Requirements](/self-hosting/requirements) and provisioned API credentials.
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone <repository-url>
+    cd entropi/core-palme
+    ```
+  </Step>
+
+  <Step title="Create a virtual environment">
+    <CodeGroup>
+    ```bash macOS / Linux
+    python3 -m venv venv
+    source venv/bin/activate
+    ```
+
+    ```bash Windows
+    python -m venv venv
+    venv\Scripts\activate
+    ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Install dependencies">
+    ```bash
+    pip install -r requirements.txt
+    ```
+  </Step>
+
+  <Step title="Provision PostgreSQL">
+    <Tabs>
+      <Tab title="macOS (Homebrew)">
+        ```bash
+        brew install postgresql@14
+        brew services start postgresql@14
+        createdb palme
+        ```
+      </Tab>
+      <Tab title="Ubuntu / Debian">
+        ```bash
+        sudo apt update
+        sudo apt install postgresql postgresql-contrib
+        sudo -u postgres createdb palme
+        ```
+      </Tab>
+      <Tab title="Docker">
+        ```bash
+        docker run --name postgres-palme \
+          -e POSTGRES_PASSWORD=yourpassword \
+          -e POSTGRES_DB=palme \
+          -p 5432:5432 \
+          -d postgres:14
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Create the .env file">
+    Copy the template and fill in your credentials. See [Environment variables](/configuration/environment-variables) for the full list.
+
+    ```bash
+    cp .env.example .env
+    ```
+  </Step>
+
+  <Step title="Run database migrations">
+    ```bash
+    alembic upgrade head
+    ```
+  </Step>
+
+  <Step title="Start the server">
+    Development:
+
+    ```bash
+    uvicorn app.main:app --reload
+    ```
+
+    Production:
+
+    ```bash
+    gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker
+    ```
+  </Step>
+</Steps>
+
+## Verify the install
+
+<Steps>
+  <Step title="Health check">
+    `GET http://localhost:8000` should return `{"status": "OK"}`.
+  </Step>
+  <Step title="Swagger UI">
+    `GET http://localhost:8000/docs` should render the OpenAPI explorer.
+  </Step>
+  <Step title="Database connection">
+    ```bash
+    python -c "
+    from app.database import SessionLocal
+    from sqlalchemy import text
+    db = SessionLocal()
+    db.execute(text('SELECT 1'))
+    print('Database connection OK')
+    db.close()
+    "
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Import errors at startup">
+    The virtual environment is not active or dependencies are not installed.
+
+    ```bash
+    source venv/bin/activate
+    pip install -r requirements.txt
+    ```
+  </Accordion>
+  <Accordion title="Database connection failed">
+    Confirm PostgreSQL is running, the database exists, the credentials in `DATABASE_URL` are correct, and the role has CONNECT permission.
+  </Accordion>
+  <Accordion title="HEIC conversion fails">
+    `pillow-heif` needs `libheif` available on the host.
+
+    ```bash
+    # macOS
+    brew install libheif
+    pip install --force-reinstall pillow-heif
+    ```
+  </Accordion>
+  <Accordion title="Pydantic validation error at startup">
+    A required environment variable is missing. The error message names the field. Cross-check against [Environment variables](/configuration/environment-variables).
+  </Accordion>
+</AccordionGroup>
+
+## Next
+
+- [Run tests](/guides/run-tests) to confirm the install passes the suite.
+- [Quickstart](/getting-started/quickstart) to make a first end-to-end call.

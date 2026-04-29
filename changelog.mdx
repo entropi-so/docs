@@ -1,0 +1,50 @@
+---
+title: Changelog
+description: "Release history. Newest first."
+---
+
+Each entry lists the date, the ticket or version, what changed, and migration notes when applicable.
+
+---
+
+## 2026-04-28 — Documentation v2
+
+Documentation restructured around the optimistic pipeline. New top-level sections: Getting Started, Using AI at Entropi, Guides, API Reference, Configuration, Self-Hosting, Reference, Changelog.
+
+**Migration notes**: none. URLs that previously lived under `/setup/*` now live under `/self-hosting/*` and `/configuration/*`. Update any external bookmarks.
+
+---
+
+## 2026-04-25 — I037: Optimistic pipeline
+
+`POST /pipeline/analyze` is now optimistic. It commits a `peeking` row and returns a `201` in under 500&nbsp;ms; the full pipeline (OCR, crop, enrichment) runs in the background and is observable via `GET /products/{id}` polling.
+
+Concurrent submits also run in real parallel — every blocking SDK call (Gemini, Pillow) is wrapped in `asyncio.to_thread`.
+
+`GET /products/{id}` is now the canonical polling endpoint. See [`api-reference/products`](/api-reference/products).
+
+**Migration notes**:
+
+- Clients that relied on `POST /pipeline/analyze` returning a fully populated product must switch to a poll loop. See [Poll for results](/guides/poll-for-results).
+- The status field can now be `peeking`, `framing`, `sleuthing`, `ready`, or `stumped`. Update any client-side enums.
+
+---
+
+## 2026-04 — I032: Unified OCR + bbox
+
+OCR and bounding-box extraction collapsed into a single Gemini 2.5 Flash call (`extract_and_locate_product`), saving ~3&nbsp;s per pipeline run. Crop service is now a pure local Pillow operation with no AI call.
+
+**Migration notes**: none for API consumers. Internal services calling the old two-step OCR/bbox interface must update to the unified call.
+
+---
+
+## v1.0 — Initial release
+
+First public version of Entropi. FastAPI + PostgreSQL + Gemini + Groq. Authentication, lists, products, full ingestion pipeline.
+
+---
+
+## Tracked but unreleased
+
+- **I038** — Server-Sent Events stream for `GET /products/{id}/stream`. Will replace polling for in-app camera capture.
+- **I039** — Durable background queue (Redis + worker). Removes the orphan-on-restart caveat called out in [Failure modes](/api-reference/analyze#durability-caveat-mvp).
