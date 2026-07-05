@@ -94,35 +94,53 @@ The core table storing all extracted product information.
 <ParamField body="id" type="integer" required>
   Primary key, auto-increment
 </ParamField>
-<ParamField body="name" type="string" required>
-  Product name (from OCR)
+<ParamField body="status" type="enum">
+  `ready`, `stumped`, or `purchased`. (`peeking`/`framing`/`sleuthing` are deprecated and never written.)
 </ParamField>
-<ParamField body="price" type="float" required>
-  Product price (numeric)
+<ParamField body="content_type" type="string">
+  Lifestyle bucket: `place`, `clothing`, `decor`, `food`, `other`
+</ParamField>
+<ParamField body="name" type="string">
+  Short natural name of the subject
+</ParamField>
+<ParamField body="price" type="float">
+  Price, only when visible in the image
 </ParamField>
 <ParamField body="description" type="text">
-  Product description (from OCR or enrichment)
+  Rich natural description (main search signal)
 </ParamField>
 <ParamField body="image_url" type="text">
-  Base64-encoded cropped product image
+  Base64-encoded cropped image (raw photo on `stumped`)
 </ParamField>
-<ParamField body="currency" type="string(3)" required>
+<ParamField body="currency" type="string(3)">
   Currency code (EUR, USD, etc.) - defaults to EUR
 </ParamField>
 <ParamField body="merchant" type="text">
-  Brand or merchant name
+  Brand — only when readable in the image; otherwise null
+</ParamField>
+<ParamField body="brand_confidence" type="float">
+  Confidence attached to `merchant` (0–1); null when no brand was read
 </ParamField>
 <ParamField body="product_url" type="text">
-  Merchant product URL (from enrichment)
+  Always null (capture does no web lookup)
 </ParamField>
 <ParamField body="category" type="string">
   Product category
 </ParamField>
 <ParamField body="tags" type="text">
-  Comma-separated tags
+  Comma-separated tags (style + colors + setting folded in)
 </ParamField>
 <ParamField body="object_type" type="string">
-  Object type (e.g., "leather jacket", "sunglasses")
+  Object type (e.g., "wool jacket", "armchair")
+</ParamField>
+<ParamField body="raw_text" type="text">
+  Verbatim text read in the image
+</ParamField>
+<ParamField body="embedding" type="vector(1024)">
+  Multimodal search embedding (pgvector); null until indexed
+</ParamField>
+<ParamField body="error_message" type="text">
+  Failure cause when `status = stumped`; null otherwise
 </ParamField>
 <ParamField body="created_at" type="timestamp">
   Product creation timestamp
@@ -132,16 +150,23 @@ The core table storing all extracted product information.
 ```sql
 CREATE TABLE products (
     id SERIAL PRIMARY KEY,
-    name VARCHAR NOT NULL,
-    price FLOAT NOT NULL,
+    status productstatus NOT NULL DEFAULT 'ready',
+    content_type VARCHAR,
+    name VARCHAR,
+    price FLOAT,
     description TEXT,
     image_url TEXT,
-    currency VARCHAR(3) NOT NULL DEFAULT 'EUR',
+    currency VARCHAR(3) DEFAULT 'EUR',
     merchant TEXT,
+    brand_confidence FLOAT,
     product_url TEXT,
     category VARCHAR,
     tags TEXT,
     object_type VARCHAR,
+    raw_text TEXT,
+    embedding VECTOR(1024),        -- pgvector; nullable until indexed
+    error_message TEXT,
+    user_id INTEGER REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 ```

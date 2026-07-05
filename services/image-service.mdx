@@ -7,7 +7,7 @@ description: "Convert and optimize images for AI processing. Supports HEIC, JPEG
 
 The **Image Service** is the first step in the Entropi pipeline. It converts mobile screenshot formats (especially iOS HEIC) to an AI-friendly format and optimizes them for processing.
 
-**File**: `app/services/image_service.py`
+**File**: `app/services/vision/image_service.py`
 
 ## Function
 
@@ -104,19 +104,19 @@ async def prepare_image_for_ocr(file_bytes: bytes, mime_type: str) -> str:
 ## Usage Example
 
 ```python
-from app.services.image_service import prepare_image_for_ocr
+from app.services.vision import prepare_image_for_ocr, analyze_capture
 
 # In your FastAPI route
-async def upload_screenshot(file: UploadFile):
+async def capture(file: UploadFile):
     # Read file bytes
     image_bytes = await file.read()
     mime_type = file.content_type or "image/jpeg"
-    
+
     # Convert to base64
     base64_image = await prepare_image_for_ocr(image_bytes, mime_type)
-    
-    # Now ready for OCR service
-    # ocr_data = await analyze_product_screenshot(base64_image)
+
+    # Now ready for the Vision Service
+    record = await analyze_capture(base64_image)
 ```
 
 ## Performance
@@ -170,11 +170,11 @@ data_uri = f"data:image/jpeg;base64,{base64_image}"
 ```
 
 <Tip>
-  The OCR service automatically adds the data URI prefix, so you can pass the base64 string directly.
+  The Vision Service handles the image encoding for the Gemini call, so you can pass the base64 string directly.
 </Tip>
 
 ## Next Steps
 
-- Learn about the [OCR Service](/services/ocr-service) that uses this output
+- Learn about the [Vision Service](/services/vision-service) that uses this output
 - Check the [Architecture](/architecture) to see how services connect
 

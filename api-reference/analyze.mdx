@@ -1,6 +1,6 @@
 ---
 title: Analyze Product
-description: "Optimistic product analysis. Upload a screenshot, get a product_id in <500ms, then poll for the result."
+description: "Synchronous product capture. Upload a screenshot or photo and get the finished, structured product back in the response."
 ---
 
 ## Endpoint
@@ -11,21 +11,21 @@ POST /pipeline/analyze
 
 ## Overview
 
-`POST /pipeline/analyze` is the main ingestion endpoint. It creates a
-`Product` row in status `peeking` and returns a `201 Created` in under
-500&nbsp;ms, then runs the full enrichment pipeline **in the background**
-(OCR &rarr; smart crop &rarr; search enrichment &rarr; merge). Clients track
-progress by polling [`GET /products/{id}`](/api-reference/products).
+`POST /pipeline/analyze` is the main capture endpoint. It runs the whole
+pipeline **in the request** — image prep &rarr; visual understanding
+(single Gemini 2.5 Flash call) &rarr; local crop &rarr; embedding &rarr;
+persist — and returns the finished `Product` in a `201 Created`. There is
+no background task and no polling.
+
+The row is created directly in its terminal state: `ready` on success, or
+`stumped` (best-effort, keeping the raw photo) when understanding fails or
+times out.
 
 <Note>
-  The endpoint used to be synchronous (&#126;10&#8209;18&nbsp;s). As of the
-  optimistic pipeline refactor it returns immediately. Share-sheet imports
-  no longer time out and gallery batch imports are trivially parallel.
-
-  Concurrent submits also run in real parallel inside the worker:
-  every blocking SDK call (Gemini, Pillow) is wrapped in
-  `asyncio.to_thread`, so N simultaneous pipelines no longer serialize
-  on the event loop.
+  Concurrent captures run in real parallel: the route is async, every
+  external call is awaited, and the CPU-bound Pillow work is offloaded via
+  `asyncio.to_thread`. A per-request timeout (45&nbsp;s) caps the
+  understanding step. There are **zero web calls** in the capture path.
 </Note>
 
 ## Request
@@ -52,8 +52,8 @@ Content-Type: multipart/form-data
 </ParamField>
 
 <ParamField body="file" type="file" required>
-  Product screenshot. Accepted formats: HEIC, JPEG, PNG, WebP. Maximum
-  size: **10&nbsp;MB**.
+  A screenshot or camera photo. Accepted formats: HEIC, JPEG, PNG, WebP.
+  Maximum size: **10&nbsp;MB**.
 </ParamField>
 
 ### cURL
@@ -63,7 +63,7 @@ Content-Type: multipart/form-data
 curl -X POST "http://localhost:8000/pipeline/analyze" \
   -H "Authorization: Bearer $TOKEN" \
   -F "list_id=1" \
-  -F "file=@screenshot.jpg"
+  -F "file=@capture.jpg"
 ```
 
 ```python Python
@@ -73,10 +73,11 @@ resp = requests.post(
     "http://localhost:8000/pipeline/analyze",
     headers={"Authorization": f"Bearer {TOKEN}"},
     data={"list_id": 1},
-    files={"file": open("screenshot.jpg", "rb")},
+    files={"file": open("capture.jpg", "rb")},
+    timeout=60,  # server caps the pipeline at 45s
 )
 resp.raise_for_status()
-product_id = resp.json()["id"]
+product = resp.json()  # already finished (ready or stumped)
 ```
 
 ```javascript JavaScript
@@ -90,142 +91,87 @@ const res = await fetch("http://localhost:8000/pipeline/analyze", {
   body: formData,
 });
 
-const { id: productId } = await res.json();
+const product = await res.json(); // finished product
 ```
 </CodeGroup>
 
+<Tip>
+  Set the client timeout above the server cap (e.g. 60&nbsp;s) and show a
+  splash/loading state during the request. The response is the finished
+  product — there is nothing to poll.
+</Tip>
+
 ## Response — 201 Created
 
-Returned immediately. Most fields are `null` at this point; they get filled
-in by the background pipeline and observable via polling.
+The response body is the fully-populated product. On success:
 
 ```json
 {
   "id": 42,
-  "status": "peeking",
-  "name": null,
-  "price": null,
-  "currency": null,
-  "description": null,
-  "image_url": null,
-  "merchant": null,
+  "status": "ready",
+  "content_type": "clothing",
+  "name": "forest-green wool jacket",
+  "description": "A cozy oversized forest-green wool jacket on a store rack, soft natural light.",
+  "category": "outerwear",
+  "object_type": "wool jacket",
+  "tags": "cozy, oversized, forest green, cream, in-store rack",
+  "merchant": "Sézane",
+  "brand_confidence": 0.9,
+  "raw_text": "SÉZANE",
+  "price": 145.0,
+  "currency": "EUR",
   "product_url": null,
-  "category": null,
-  "tags": null,
-  "object_type": null,
+  "image_url": "data:image/jpeg;base64,/9j/...",
   "error_message": null,
-  "created_at": "2026-04-25T02:39:26.359572-07:00"
+  "board_ids": [1],
+  "created_at": "2026-07-04T02:39:26.359572-07:00"
 }
 ```
 
-<ParamField body="id" type="integer">
-  Product ID. Store it client-side — it is the key to poll the pipeline
-  progress via `GET /products/{id}`.
-</ParamField>
+Key fields specific to the lifestyle record are documented on
+[`GET /products/{id}`](/api-reference/products#fields).
 
 <ParamField body="status" type="string">
-  Always `"peeking"` in the initial response. See [Status
-  lifecycle](#status-lifecycle) below.
+  `"ready"` on success, or `"stumped"` when understanding failed/timed out.
+  These are the only two outcomes here (plus `"purchased"` later in a
+  product's life). See [Status lifecycle](#status-lifecycle).
 </ParamField>
 
-<ParamField body="error_message" type="string | null">
-  Only populated if the pipeline terminates in `stumped` status.
+<ParamField body="merchant" type="string | null">
+  The brand, **only when it was actually readable** in the image
+  (logo/label/text) with sufficient confidence; otherwise `null`. Never
+  guessed from style. `brand_confidence` accompanies it.
+</ParamField>
+
+<ParamField body="image_url" type="string">
+  Base64 data-URI. On `ready` it is the cropped subject; on `stumped` it is
+  the raw photo (so a failed capture is never lost).
 </ParamField>
 
 ## Status lifecycle
 
-Every product created by this endpoint moves through these states:
-
-| Status      | Meaning                                                                                 |
-| ----------- | --------------------------------------------------------------------------------------- |
-| `peeking`   | Row just created, unified OCR + bbox call running (Gemini 2.5 Flash).                   |
-| `framing`   | OCR + bbox succeeded, local Pillow crop running. Near-instant (&lt;100&nbsp;ms).            |
-| `sleuthing` | Crop done, merchant search + scraping running. Hard-capped at 15&nbsp;s.                 |
-| `ready`     | Pipeline completed. Product fields populated. (May be OCR-only if enrichment fell back.) |
-| `stumped`   | Pipeline failed. `error_message` describes why. See [Failure modes](#failure-modes).    |
-
-<Frame>
 ```mermaid
 stateDiagram-v2
-    [*] --> peeking: POST /pipeline/analyze
-    peeking --> framing: OCR ok
-    framing --> sleuthing: crop done (or skipped)
-    sleuthing --> ready: pipeline complete
-    peeking --> stumped: OCR failed
-    sleuthing --> ready: enrichment failed (graceful)
-    state "unexpected error" as err
-    peeking --> err
-    framing --> err
-    sleuthing --> err
-    err --> stumped
-```
-</Frame>
-
-## Polling
-
-Once you have the `product_id`, poll `GET /products/{id}` until `status`
-is `ready` or `stumped`. A cadence of 300&ndash;500&nbsp;ms is a good
-default for the in-app camera flow.
-
-```bash
-PID=42
-while :; do
-  status=$(curl -s "http://localhost:8000/products/$PID" \
-    -H "Authorization: Bearer $TOKEN" | jq -r .status)
-  echo "$(date +%H:%M:%S) $status"
-  [[ "$status" == "ready" || "$status" == "stumped" ]] && break
-  sleep 0.5
-done
+    [*] --> ready: understanding succeeded
+    [*] --> stumped: understanding failed / timed out (raw photo kept)
 ```
 
-<Tip>
-  For a nicer mobile UX, a dedicated Server-Sent Events stream is planned
-  (`GET /products/{id}/stream`, ticket I038). For now, HTTP polling is the
-  supported mechanism.
-</Tip>
+| Status    | Meaning                                                                          |
+| --------- | -------------------------------------------------------------------------------- |
+| `ready`   | Capture complete. Record fully populated; embedded for search (best-effort).     |
+| `stumped` | Understanding failed or hit the 45&nbsp;s cap. `image_url` keeps the raw photo; `error_message` explains why. |
 
-See the full [`GET /products/{id}`](/api-reference/products) reference for
-the shape of the polled response.
-
-## Sequence diagram
-
-<Frame>
-```mermaid
-sequenceDiagram
-    participant Client
-    participant API
-    participant BG as Background Task
-    participant DB as PostgreSQL
-
-    Client->>API: POST /pipeline/analyze (list_id, file)
-    API->>DB: INSERT products (status=peeking)
-    API->>BG: asyncio.create_task(run_pipeline)
-    API-->>Client: 201 { id, status: peeking }
-
-    Note over BG,DB: Fire-and-forget background work
-
-    BG->>DB: UPDATE status=peeking (already set)
-    BG->>BG: OCR + bbox (single Gemini 2.5 Flash call)
-    BG->>DB: UPDATE status=framing
-    BG->>BG: Local Pillow crop (no AI call)
-    BG->>DB: UPDATE status=sleuthing
-    BG->>BG: Search enrichment (15s timeout + circuit breaker)
-    BG->>DB: UPDATE status=ready + all fields (or OCR-only)
-
-    loop every 300-500ms
-        Client->>API: GET /products/{id}
-        API->>DB: SELECT product
-        API-->>Client: { status, name?, price?, ... }
-    end
-```
-</Frame>
+<Note>
+  `peeking`, `framing`, and `sleuthing` belonged to the old optimistic
+  pipeline and are **deprecated — never emitted**. If you maintained a
+  client-side enum, you can drop them.
+</Note>
 
 ## Failure modes
 
-Errors that happen **before** the background task is spawned are
-reported synchronously with a 4xx/5xx HTTP status. Errors that happen
-**inside** the pipeline leave the product in `stumped` state and return
-via polling.
+A **failed capture is not an HTTP error** — the product is always persisted
+and returned as `stumped`. HTTP errors are reserved for request-level
+problems that occur before persistence.
 
 ### 401 Unauthorized
 
@@ -249,55 +195,50 @@ File exceeds 10&nbsp;MB. No product row is created.
 
 ### 500 Internal Server Error
 
-Failure to persist the optimistic product row (rare — usually a DB
-connectivity issue). No product row is created.
+Failure to persist the product row (rare — usually a DB connectivity issue).
 
-### `status = "stumped"` (returned via polling)
+### `status = "stumped"` (returned in the 201 body)
 
-The background pipeline could not complete. Inspect `error_message`.
-The most common cause is OCR being unable to extract a product name from
-the image (blurry, unrelated content, unreadable text, unsupported
-HEIC&nbsp;/&nbsp;CODEC).
+Understanding could not complete. Inspect `error_message`. The raw photo is
+kept in `image_url` so the user does not lose the capture.
 
 ```json
 {
   "id": 42,
   "status": "stumped",
-  "error_message": "OCR failed: cannot identify image file",
+  "error_message": "Capture failed: Visual understanding returned no data.",
+  "image_url": "data:image/jpeg;base64,/9j/...",
   "name": null,
-  ...
+  "board_ids": [1],
+  "created_at": "2026-07-04T02:39:26.359572-07:00"
 }
 ```
 
-<Note>
-  Crop and search enrichment failures are treated as graceful
-  degradation: the product still reaches `ready`, just with an image
-  from the original upload and/or without enriched metadata. Only OCR
-  failure produces `stumped`.
+## Batch capture
 
-  Enrichment falls back to OCR-only data on three signals: timeout
-  (>15&nbsp;s, enforced via `asyncio.wait_for`), exception, or an open
-  circuit breaker (3 consecutive failures → 60&nbsp;s skip). Clients
-  can detect OCR-only products by the absence of
-  `search_confidence:<n>` in the `tags` field.
-</Note>
+```http
+POST /pipeline/analyze/batch
+```
 
-## Durability caveat (MVP)
+Same semantics for up to **20** files in one request. Items are processed
+concurrently (bounded) and the response is a list of **finished** products
+plus a per-file `errors[]` for anything rejected (bad size, unreadable):
 
-<Warning>
-  Background tasks are scheduled with `asyncio.create_task` and are
-  **not persisted across server restarts**. If the server restarts while
-  a product is still in `peeking`&nbsp;/&nbsp;`framing`&nbsp;/&nbsp;`sleuthing`,
-  that product will be orphaned in an intermediate status. Ticket I039
-  will introduce a durable job queue (Redis + worker) when scale demands
-  it.
-</Warning>
+```json
+{
+  "products": [ { "id": 42, "status": "ready", "...": "..." } ],
+  "errors": [ { "filename": "toobig.jpg", "reason": "file too large (>10MB)" } ]
+}
+```
+
+An invalid file never fails the batch; it lands in `errors[]` and the rest
+are processed normally.
 
 ## Supported image formats
 
 <CardGroup cols={2}>
   <Card title="HEIC" icon="mobile-screen">
-    iOS screenshots (primary use case)
+    iOS screenshots and photos (primary use case)
   </Card>
   <Card title="JPEG" icon="image">
     Standard JPEG images
@@ -324,25 +265,15 @@ LIST_ID=$(curl -s -X POST http://localhost:8000/lists/ \
   -H "Content-Type: application/json" \
   -d '{"name":"Test"}' | jq -r .id)
 
-# 3. Submit an image (returns 201 in <500ms)
-PID=$(curl -s -X POST http://localhost:8000/pipeline/analyze \
+# 3. Capture — the response IS the finished product
+curl -s -X POST http://localhost:8000/pipeline/analyze \
   -H "Authorization: Bearer $TOKEN" \
   -F "list_id=$LIST_ID" \
-  -F "file=@screenshot.jpg" | jq -r .id)
-
-# 4. Poll until ready
-while :; do
-  resp=$(curl -s "http://localhost:8000/products/$PID" \
-    -H "Authorization: Bearer $TOKEN")
-  status=$(echo "$resp" | jq -r .status)
-  echo "$(date +%H:%M:%S) $status"
-  [[ "$status" == "ready" || "$status" == "stumped" ]] && echo "$resp" | jq && break
-  sleep 0.5
-done
+  -F "file=@capture.jpg" | jq
 ```
 
 ## Next steps
 
-- [`GET /products/{id}`](/api-reference/products) — polling reference.
-- [Authentication](/api-reference/authentication) — how to obtain a token.
+- [`GET /products/{id}`](/api-reference/products) — fetch a product and its full field reference.
+- [`GET /products/search`](/api-reference/search) — semantic search over your captures.
 - [Architecture](/architecture) — pipeline internals.

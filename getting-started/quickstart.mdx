@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: "Register, log in, upload a screenshot, and poll until the product is ready. Five minutes, no assumptions."
+description: "Register, log in, capture a product, and search your library. Five minutes, no assumptions."
 ---
 
 This page assumes Entropi is running locally on `http://localhost:8000`. If it is not, follow the [Self-Hosting installation guide](/self-hosting/installation) first.
@@ -45,53 +45,49 @@ You will need `curl` and `jq`.
     ```
   </Step>
 
-  <Step title="Upload a product screenshot">
+  <Step title="Capture a product">
     ```bash
-    PID=$(curl -s -X POST http://localhost:8000/pipeline/analyze \
+    curl -s -X POST http://localhost:8000/pipeline/analyze \
       -H "Authorization: Bearer $TOKEN" \
       -F "list_id=$LIST_ID" \
-      -F "file=@screenshot.jpg" \
-      | jq -r .id)
-
-    echo "product_id=$PID"
+      -F "file=@capture.jpg" | jq
     ```
 
-    This returns in under 500&nbsp;ms with `status: "peeking"`. The pipeline is now running in the background.
+    This is **synchronous**: the call runs the whole pipeline and returns the
+    finished product (typically within a few seconds, capped at 45&nbsp;s).
+    The response `status` is `ready` — or `stumped` if understanding failed,
+    in which case the raw photo is still saved. No polling.
   </Step>
 
-  <Step title="Poll until the pipeline finishes">
+  <Step title="Search your library">
     ```bash
-    while :; do
-      resp=$(curl -s "http://localhost:8000/products/$PID" \
-        -H "Authorization: Bearer $TOKEN")
-      status=$(echo "$resp" | jq -r .status)
-      echo "$(date +%H:%M:%S) $status"
-      [[ "$status" == "ready" || "$status" == "stumped" ]] && echo "$resp" | jq && break
-      sleep 0.5
-    done
+    curl -s -G "http://localhost:8000/products/search" \
+      -H "Authorization: Bearer $TOKEN" \
+      --data-urlencode "q=cozy green jacket" | jq
     ```
 
-    Expect the product to reach `ready` in 6&ndash;14&nbsp;s. If it ends in `stumped`, read the `error_message`.
+    Free-text semantic search over your own products, ranked by relevance.
+    It matches on what the photo shows, not just stored words.
   </Step>
 </Steps>
 
 ## What you just did
 
-You exercised the full Entropi pipeline: authentication, list creation, optimistic ingestion, and polling.
+You exercised the full Entropi flow: authentication, list creation, synchronous capture, and semantic search.
 
-The endpoint `POST /pipeline/analyze` is **optimistic**: it commits a row immediately and runs OCR, crop, and enrichment after the response is sent. Clients are expected to poll `GET /products/{id}` until they see a terminal status (`ready` or `stumped`).
+`POST /pipeline/analyze` runs image prep, visual understanding (one Gemini call), crop, and embedding **in the request**, then returns the finished product. There is nothing to poll — the record is complete when you get the response.
 
 ## Next steps
 
 <CardGroup cols={2}>
   <Card title="Core Concepts" icon="book" href="/getting-started/core-concepts">
-    The mental models behind the optimistic pipeline.
+    The mental models behind the synchronous pipeline and the capture record.
   </Card>
   <Card title="Analyze API" icon="code" href="/api-reference/analyze">
     Full reference for `POST /pipeline/analyze`.
   </Card>
-  <Card title="Polling reference" icon="rotate" href="/api-reference/products">
-    Full reference for `GET /products/{id}`.
+  <Card title="Search API" icon="magnifying-glass" href="/api-reference/search">
+    Full reference for `GET /products/search`.
   </Card>
   <Card title="Failure modes" icon="triangle-exclamation" href="/guides/handle-failures">
     What `stumped` actually means and how to recover.

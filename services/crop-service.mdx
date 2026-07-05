@@ -1,22 +1,22 @@
 ---
 title: Crop Service
-description: "Crop the screenshot to the product bbox using local Pillow. No AI call — the bbox is provided by the OCR + Bbox Service."
+description: "Crop the image to the subject bbox using local Pillow. No AI call — the bbox is provided by the Vision Service."
 ---
 
 ## Overview
 
 The **Crop Service** takes the bounding box returned by the
-[OCR + Bbox Service](/services/ocr-service) and crops the screenshot
-locally using Pillow. There is **no AI call here** — bbox detection
-happens upstream in the unified Gemini call.
+[Vision Service](/services/vision-service) and crops the image
+locally using Pillow. There is **no AI call here** — the bbox is produced
+upstream by the single Gemini understanding call.
 
 **File**: `app/services/vision/image_crop_service.py`
 
 ## Function
 
 <ParamField body="crop_with_bbox" type="async function">
-  Crops the image to the product bbox returned by
-  `extract_and_locate_product`. Returns the cropped image as base64
+  Crops the image to the subject bbox returned by
+  `analyze_capture`. Returns the cropped image as base64
   JPEG.
 </ParamField>
 
@@ -32,7 +32,7 @@ async def crop_with_bbox(
   Base64-encoded full screenshot.
 </ParamField>
 <ParamField body="bbox_normalized" type="[ymin, xmin, ymax, xmax]" required>
-  Normalized bbox (0–1000) from the OCR + Bbox Service.
+  Normalized bbox (0–1000) from the Vision Service.
 </ParamField>
 <ParamField body="padding_percent" type="float" optional>
   Padding around the bbox, as a fraction of bbox size (default 0.20).
@@ -78,7 +78,7 @@ from app.services.vision.image_crop_service import crop_with_bbox
 
 cropped_image = await crop_with_bbox(
     base64_image=base64_image,
-    bbox_normalized=ocr_data["bbox"],   # from extract_and_locate_product
+    bbox_normalized=record["bbox"],   # from analyze_capture
     padding_percent=0.20,
 )
 ```
@@ -114,7 +114,7 @@ No Gemini key, no network call — this service is fully local.
   The service implements **graceful degradation**:
   - Invalid bbox (`null`, out of range, zero area) → returns original
   - Decode/crop exception → returns original
-  - The pipeline always continues to enrichment, even when the crop
+  - The pipeline always continues (status still `ready`), even when the crop
     falls back to the original image.
 </Warning>
 
@@ -130,5 +130,5 @@ dimensions, then applies `padding_percent` and clamps to image bounds.
 
 ## Next Steps
 
-- [OCR + Bbox Service](/services/ocr-service) — the upstream call that produces the bbox
-- [Search Enrichment](/services/search-enrichment) — consumes the cropped image
+- [Vision Service](/services/vision-service) — the upstream call that produces the bbox
+- [Embedding Service](/services/embedding-service) — embeds the cropped image for search

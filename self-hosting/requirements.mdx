@@ -14,13 +14,12 @@ description: "What you need on the host before installing Entropi."
 
 ## API credentials
 
-Entropi calls Gemini and Groq directly. Provision keys before starting the install:
+Entropi calls Gemini, Groq, and (optionally) Voyage directly. Provision keys before starting the install:
 
-- **Gemini API** — [Google AI Studio](https://aistudio.google.com/app/apikey). Used for OCR + bbox extraction and grounded search enrichment.
+- **Gemini API** — [Google AI Studio](https://aistudio.google.com/app/apikey). Used by the capture pipeline for visual understanding.
 - **Groq API** — [Groq Console](https://console.groq.com). Used by the advisor and URL import services.
+- **Voyage API** — [Voyage AI](https://www.voyageai.com). *Optional* — enables semantic search (multimodal embeddings). Without it, capture works but products are not indexed.
 - **Google OAuth** — Google Cloud Console. Required for sign-in.
-
-You can reuse a single Gemini key across `GEMINI_VISION_API_KEY` and `GEMINI_SEARCH_API_KEY`.
 
 ## Hardware
 

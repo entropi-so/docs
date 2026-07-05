@@ -34,13 +34,16 @@ The two trees never overlap. Pytest must never call a real Gemini or Groq endpoi
 
     ```bash
     pytest tests/test_pipeline_api.py -v      # one file
-    pytest tests/ -k enrichment_resilience    # filter by name
+    pytest tests/ -k search                    # filter by name
     pytest tests/ -x                          # stop at first failure
     ```
+
+    Run without `VOYAGE_API_KEY` set (or mock the embedding call); a live
+    Voyage key can hang the suite.
   </Step>
   <Step title="Run a dev script when iterating on AI">
     ```bash
-    python scripts/dev_tests/unit/ocr_service/test_vision_extraction.py
+    python scripts/dev_tests/unit/vision_service/test_vision_extraction.py
     ```
 
     Dev scripts hit real providers and consume budget. Use small inputs.
@@ -67,7 +70,7 @@ tests/test_pipeline_api.py ............                                  [ 30%]
 
 <CardGroup cols={2}>
   <Card title="Add a pytest test when..." icon="check">
-    You add or change an HTTP endpoint, an auth rule, a DB-level behavior, or a background task whose status transitions matter to clients.
+    You add or change an HTTP endpoint, an auth rule, or a DB-level behavior.
   </Card>
   <Card title="Add a dev script when..." icon="flask">
     You add or tune an AI service (prompt change, model swap, scraping rule). The goal is to inspect real provider output, not to assert pass/fail.

@@ -7,6 +7,25 @@ Each entry lists the date, the ticket or version, what changed, and migration no
 
 ---
 
+## 2026-07 — Synchronous capture pipeline + semantic search
+
+`POST /pipeline/analyze` is now **synchronous**: it runs the whole capture in the request (image prep → visual understanding → crop → embedding) and returns the finished product. The optimistic/polling machinery and the web-enrichment step are gone; there are **zero web calls** in the capture path.
+
+Products are created directly in `ready`, or `stumped` (best-effort, keeping the raw photo). The single Gemini 2.5 Flash call now produces a **lifestyle record** — `content_type`, a rich `description`, `category`, `object_type`, colors/style/setting (folded into `tags`), `brand` + `brand_confidence` (only when readable), and `raw_text`. The `ocr_service` was renamed to `vision_service` (`analyze_capture`).
+
+Every capture is indexed into a multimodal embedding, powering the new [`GET /products/search`](/api-reference/search) semantic search.
+
+**Migration notes**:
+
+- **Stop polling.** `POST /pipeline/analyze` now returns the finished product. Remove any `GET /products/{id}` poll loop.
+- **Statuses** `peeking`, `framing`, and `sleuthing` are deprecated and never emitted. Only `ready` / `stumped` / `purchased` occur. Drop them from client enums.
+- **New fields** on products: `content_type`, `brand_confidence`, `raw_text`. `product_url` is always `null` (no web).
+- **Batch** (`POST /pipeline/analyze/batch`) now returns a list of finished products (not `{id, status}` stubs) plus `errors[]`.
+- **Config**: `GEMINI_SEARCH_API_KEY` is removed; add the optional `VOYAGE_API_KEY` to enable search. Existing products can be indexed with `python scripts/backfill_embeddings.py`.
+- **DB**: three new nullable columns (`content_type`, `brand_confidence`, `raw_text`) via an additive migration.
+
+---
+
 ## 2026-04-28 — Documentation v2
 
 Documentation restructured around the optimistic pipeline. New top-level sections: Getting Started, Using AI at Entropi, Guides, API Reference, Configuration, Self-Hosting, Reference, Changelog.
@@ -25,7 +44,7 @@ Concurrent submits also run in real parallel — every blocking SDK call (Gemini
 
 **Migration notes**:
 
-- Clients that relied on `POST /pipeline/analyze` returning a fully populated product must switch to a poll loop. See [Poll for results](/guides/poll-for-results).
+- Clients that relied on `POST /pipeline/analyze` returning a fully populated product must switch to a poll loop. *(Superseded by the 2026-07 synchronous pipeline — polling was later removed entirely.)*
 - The status field can now be `peeking`, `framing`, `sleuthing`, `ready`, or `stumped`. Update any client-side enums.
 
 ---
@@ -46,5 +65,10 @@ First public version of Entropi. FastAPI + PostgreSQL + Gemini + Groq. Authentic
 
 ## Tracked but unreleased
 
-- **I038** — Server-Sent Events stream for `GET /products/{id}/stream`. Will replace polling for in-app camera capture.
-- **I039** — Durable background queue (Redis + worker). Removes the orphan-on-restart caveat called out in [Failure modes](/api-reference/analyze#durability-caveat-mvp).
+- Retroactive embedding coverage: automatic re-indexing of `ready` products that were captured while `VOYAGE_API_KEY` was absent (today handled manually via `scripts/backfill_embeddings.py`).
+
+<Note>
+  The previously tracked SSE stream (I038) and durable background queue (I039)
+  are obsolete: the synchronous pipeline has no polling and no background task,
+  so neither is needed.
+</Note>

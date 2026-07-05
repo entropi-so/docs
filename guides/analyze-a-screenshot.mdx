@@ -1,13 +1,13 @@
 ---
-title: Analyze a screenshot
-description: "Submit an image to the pipeline and get back a structured product."
+title: Capture a screenshot or photo
+description: "Submit an image to the pipeline and get back a finished, structured product."
 ---
 
 ## Context
 
-You have a product screenshot (from a phone, a website, or a social feed) and want Entropi to extract structured product data from it. This is the canonical use case.
+You have a screenshot or a camera photo of a place, an outfit, a piece of decor, or a dish, and you want Entropi to turn it into a structured record. This is the canonical use case.
 
-The flow is two HTTP calls: a `POST` to submit, then a `GET` (polled) to retrieve the result.
+The flow is a **single** HTTP call: a `POST` that returns the finished product. No polling.
 
 ## Steps
 
@@ -35,22 +35,19 @@ The flow is two HTTP calls: a `POST` to submit, then a `GET` (polled) to retriev
     ```
   </Step>
 
-  <Step title="Submit the screenshot">
-    `POST /pipeline/analyze` accepts multipart/form-data with `list_id` and `file` fields.
+  <Step title="Capture the image">
+    `POST /pipeline/analyze` accepts multipart/form-data with `list_id` and `file` fields, and returns the finished product.
 
     ```bash
-    PID=$(curl -s -X POST http://localhost:8000/pipeline/analyze \
+    curl -s -X POST http://localhost:8000/pipeline/analyze \
       -H "Authorization: Bearer $TOKEN" \
       -F "list_id=$LIST_ID" \
-      -F "file=@screenshot.jpg" \
-      | jq -r .id)
+      -F "file=@capture.jpg" | jq
     ```
 
-    Accepted formats: HEIC, JPEG, PNG, WebP. Maximum size: 10&nbsp;MB.
-  </Step>
-
-  <Step title="Poll for completion">
-    See [Poll for results](/guides/poll-for-results) for the recommended cadence and stop conditions.
+    Accepted formats: HEIC, JPEG, PNG, WebP. Maximum size: 10&nbsp;MB. Set your
+    client timeout above the server cap (45&nbsp;s) and show a loading state
+    while it runs.
   </Step>
 </Steps>
 
@@ -62,24 +59,36 @@ A `ready` product looks like this:
 {
   "id": 42,
   "status": "ready",
-  "name": "Headliner (Gen 2)",
-  "price": 459.0,
+  "content_type": "clothing",
+  "name": "forest-green wool jacket",
+  "description": "A cozy oversized forest-green wool jacket on a store rack.",
+  "category": "outerwear",
+  "object_type": "wool jacket",
+  "tags": "cozy, oversized, forest green, cream, in-store rack",
+  "merchant": "Sézane",
+  "brand_confidence": 0.9,
+  "raw_text": "SÉZANE",
+  "price": 145.0,
   "currency": "EUR",
-  "merchant": "Ray-Ban | Meta",
-  "product_url": "https://ray-ban.com/...",
-  "category": "eyewear",
-  "tags": "sunglasses, smart, search_confidence:92",
-  "object_type": "sunglasses",
+  "product_url": null,
   "image_url": "data:image/jpeg;base64,/9j/...",
   "error_message": null,
-  "created_at": "2026-04-25T02:39:26.359572-07:00"
+  "board_ids": [42],
+  "created_at": "2026-07-04T02:39:26.359572-07:00"
 }
 ```
 
+Once it is saved, it is also indexed for [semantic search](/guides/semantic-search).
+
 ## Common mistakes
 
-- **Forgetting `list_id`** — the request returns 422 with no product row created.
-- **Submitting an image larger than 10&nbsp;MB** — returns 413 with no product row created.
-- **Treating `peeking` as a failure** — it is the initial state, not an error. Keep polling.
-- **Polling too aggressively** — anything below 300&nbsp;ms wastes server cycles. See [Poll for results](/guides/poll-for-results).
-- **Assuming `ready` means enriched** — a product that fell back to OCR-only also reaches `ready`. Check for `search_confidence:<n>` in `tags`.
+- **Forgetting `list_id`** — the request returns 422 with no product created.
+- **Submitting an image larger than 10&nbsp;MB** — returns 413 with no product created.
+- **Expecting a `product_id` to poll** — there is no polling; the response *is* the finished product.
+- **Treating `stumped` as a lost capture** — a `stumped` product still exists, with the raw photo in `image_url`. Surface it as "we could not read this one" and let the user retry or keep it.
+- **Expecting a `product_url`** — capture does no web lookup; `product_url` is always `null`.
+
+## Next steps
+
+- [Handle failures](/guides/handle-failures) — what `stumped` means and how to recover.
+- [Semantic search](/guides/semantic-search) — find captures later by free text.

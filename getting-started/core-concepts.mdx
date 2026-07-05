@@ -5,41 +5,53 @@ description: "Four mental models that explain how Entropi behaves. Read this bef
 
 If you only read one page after the [Quickstart](/getting-started/quickstart), read this one.
 
-## 1. The optimistic pipeline
+## 1. The synchronous pipeline
 
-`POST /pipeline/analyze` does not wait for the work to finish. It writes a `peeking` row to the database, schedules a background task, and returns a `201 Created` in under 500&nbsp;ms.
+`POST /pipeline/analyze` runs the whole capture **in the request** and returns the finished product in the `201 Created` response body. There is no background task and no polling: image prep, visual understanding, crop, and embedding all complete before the response is sent.
 
-The pipeline then runs OCR, crop, and search enrichment asynchronously and updates the row as it progresses. Clients poll `GET /products/{id}` to observe the status changes.
+The row is created already in its terminal state — `ready` on success, or `stumped` (best-effort, keeping the raw photo) on failure. Perceived speed is handled on the client (a splash screen during the request), so the backend can stay simple, linear, and in-process.
 
-This is a deliberate trade-off. The user-perceived latency drops from ~10&nbsp;s to under half a second. The cost is that clients must poll, and a server restart can orphan in-progress products. See [the durability caveat](/api-reference/analyze#durability-caveat-mvp).
+Concurrency is real, not serialized: the route is async, every external call is awaited, and the CPU-bound image work (Pillow decode/crop/resize) runs in worker threads via `asyncio.to_thread`. N simultaneous captures progress in parallel on the event loop. A per-request timeout (45&nbsp;s) caps the understanding step.
 
 ## 2. The status lifecycle
 
-Every product moves through a fixed state machine.
+A captured product is created directly in a terminal state.
 
-| Status      | Meaning                                                                   |
-| ----------- | ------------------------------------------------------------------------- |
-| `peeking`   | Row created. OCR + bbox call (Gemini 2.5 Flash) is running.               |
-| `framing`   | OCR succeeded. Local Pillow crop is running. Near-instant (&lt;100&nbsp;ms). |
-| `sleuthing` | Crop done. Merchant search and scraping are running. 15&nbsp;s hard cap.  |
-| `ready`     | Pipeline complete. Product fields populated.                              |
-| `stumped`   | Pipeline failed. `error_message` describes why.                           |
+| Status    | Meaning                                                                            |
+| --------- | ---------------------------------------------------------------------------------- |
+| `ready`   | Capture complete. The record is fully populated.                                   |
+| `stumped` | Understanding failed or timed out. The raw photo is kept in `image_url`; `error_message` explains why. |
 
-`ready` and `stumped` are terminal. Stop polling once you see them.
+<Note>
+  The statuses `peeking`, `framing`, and `sleuthing` belonged to the old
+  optimistic/polling pipeline. They are **deprecated and never emitted**.
+  Clients only ever see `ready` or `stumped` (plus `purchased` once an item
+  is marked bought).
+</Note>
 
-## 3. Graceful degradation
+## 3. The capture record
 
-Each stage of the pipeline has its own failure policy:
+The whole point of a capture is a rich, search-native record — useful even when the exact product is unknown. An unidentified jacket photographed in a store should still be saved with enough meaning (object, colors, style) to live in a moodboard and resurface on a query like *"cozy green jacket"*.
 
-- **OCR failure** is fatal. The product ends in `stumped`.
-- **Crop failure** falls back to the original (uncropped) image. The pipeline continues.
-- **Search enrichment failure** falls back to OCR-only data. The product still reaches `ready` — just without a `product_url` or scraped metadata.
+Every record carries:
 
-Search enrichment is wrapped in a 15&nbsp;s `asyncio.wait_for` and protected by a circuit breaker (3 consecutive failures opens it for 60&nbsp;s, during which enrichment is skipped entirely). Low-confidence enrichment results (&lt;90%) are discarded but do **not** trip the breaker.
+- **`content_type`** — the coarse bucket: `place`, `clothing`, `decor`, `food`, or `other`.
+- **`description`** — a rich, natural description of what is visible. This is the main driver of search quality.
+- **`category`**, **`object_type`** — e.g. `outerwear` / `wool jacket`.
+- **`tags`** — colors, style descriptors, and setting, folded into one comma-separated field.
+- **`merchant`** + **`brand_confidence`** — the brand **only when it is actually readable** in the image (a logo, a label, visible text); otherwise both are `null`. Brand is never guessed from style.
+- **`raw_text`** — verbatim text read in the image.
+- **`image_url`** — the cropped product image (base64 data-URI).
 
-The takeaway: a `ready` status does not guarantee enriched data. Inspect the `tags` field — the absence of `search_confidence:<n>` means the product fell back to OCR-only.
+There are no web fields: `product_url` is always `null` — capture involves zero web calls.
 
-## 4. Services as stages
+## 4. Semantic search comes for free
+
+Every `ready` capture is embedded (best-effort) into a multimodal vector at capture time. [`GET /products/search`](/api-reference/search) then embeds a free-text query and ranks the caller's products by cosine similarity — matching on what the photo *shows* (color, object, setting) as much as on its text. So *"veste verte cosy"* finds a green jacket even if none of those words are stored.
+
+If the embedding provider (Voyage) is not configured, capture still works — the product is simply left unindexed and search returns `503`.
+
+## Services as stages
 
 The pipeline is four stateless services chained together:
 
@@ -47,14 +59,14 @@ The pipeline is four stateless services chained together:
   <Card title="Image Service" icon="image" href="/services/image-service">
     Decode, convert (HEIC&nbsp;→&nbsp;JPEG), resize, base64-encode.
   </Card>
-  <Card title="OCR + Bbox" icon="eye" href="/services/ocr-service">
-    Single Gemini 2.5 Flash call returning both product fields and a bounding box.
+  <Card title="Vision Service" icon="eye" href="/services/vision-service">
+    A single Gemini 2.5 Flash multimodal call: recognition + text reading + structured record + bounding box.
   </Card>
   <Card title="Crop Service" icon="crop" href="/services/crop-service">
     Local Pillow crop with 20% padding. No AI call.
   </Card>
-  <Card title="Search Enrichment" icon="magnifying-glass" href="/services/search-enrichment">
-    Gemini grounded search + scraping, behind a timeout and a circuit breaker.
+  <Card title="Embedding Service" icon="vector-square" href="/services/embedding-service">
+    Voyage multimodal embedding (text + cropped image) for semantic search.
   </Card>
 </CardGroup>
 
@@ -62,11 +74,11 @@ Each service is async, stateless, and independently testable. See [Architecture]
 
 ## Mental model summary
 
-You should now be able to answer four questions without re-reading anything:
+You should now be able to answer these without re-reading anything:
 
-1. Why does `POST /pipeline/analyze` return so fast?
-2. What does `status: stumped` tell you that `status: ready` does not?
-3. When does enrichment get skipped, and how does the client detect it?
-4. Which stages of the pipeline call an AI provider, and which run locally?
+1. Why does `POST /pipeline/analyze` return the finished product instead of a `product_id` to poll?
+2. What does `status: stumped` guarantee about the response (hint: the raw photo)?
+3. When is `merchant` populated, and when is it `null`?
+4. Which stages call an AI provider, and which run locally?
 
-If any of those is unclear, re-read the relevant section above before moving on.
+If any is unclear, re-read the relevant section above before moving on.

@@ -6,22 +6,35 @@ This directory contains the complete Mintlify documentation for Entropi API.
 
 ```
 docs/
-├── mint.json                    # Mintlify configuration
+├── docs.json                    # Mintlify navigation & theme
 ├── introduction.mdx             # Project introduction
-├── architecture.mdx            # System architecture
+├── architecture.mdx             # Synchronous pipeline architecture
 ├── database.mdx                 # Database schema
+├── getting-started/
+│   ├── quickstart.mdx           # Five-minute end-to-end
+│   └── core-concepts.mdx        # Mental models
+├── guides/
+│   ├── analyze-a-screenshot.mdx # Capture flow
+│   ├── semantic-search.mdx      # Search flow
+│   ├── handle-failures.mdx      # stumped + errors
+│   └── run-tests.mdx            # pytest vs dev scripts
 ├── services/
-│   ├── overview.mdx            # Services overview
-│   ├── image-service.mdx       # Image conversion service
-│   ├── ocr-service.mdx         # OCR extraction service
-│   ├── crop-service.mdx        # Smart cropping service
-│   └── search-enrichment.mdx   # Search enrichment service
+│   ├── overview.mdx             # Services overview
+│   ├── image-service.mdx        # Image conversion service
+│   ├── vision-service.mdx       # Single-call visual understanding
+│   ├── crop-service.mdx         # Local Pillow crop
+│   └── embedding-service.mdx    # Multimodal search indexing
 ├── api-reference/
-│   ├── analyze.mdx             # Main pipeline endpoint
-│   └── authentication.mdx      # Auth endpoints
-└── setup/
-    ├── installation.mdx        # Installation guide
-    └── configuration.mdx        # Configuration guide
+│   ├── authentication.mdx       # Auth endpoints
+│   ├── analyze.mdx              # Synchronous capture endpoint
+│   ├── products.mdx             # Get product + field reference
+│   └── search.mdx              # Semantic search endpoint
+├── configuration/
+│   └── environment-variables.mdx
+└── self-hosting/
+    ├── requirements.mdx
+    ├── installation.mdx
+    └── upgrades.mdx
 ```
 
 ## Deploying to Mintlify

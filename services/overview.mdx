@@ -1,11 +1,11 @@
 ---
 title: Services Overview
-description: "Overview of all services in the Entropi pipeline and their responsibilities."
+description: "Overview of all services in the Entropi capture pipeline and their responsibilities."
 ---
 
 ## Services Architecture
 
-Entropi's pipeline consists of **4 core services** that work together to transform a screenshot into a structured product record.
+Entropi's pipeline consists of **4 core services** that transform a capture into a structured, search-indexed product record.
 
 <CardGroup cols={2}>
   <Card
@@ -16,25 +16,25 @@ Entropi's pipeline consists of **4 core services** that work together to transfo
     Converts and optimizes images for AI processing
   </Card>
   <Card
-    title="OCR + Bbox Service"
+    title="Vision Service"
     icon="eye"
-    href="/services/ocr-service"
+    href="/services/vision-service"
   >
-    Extracts product fields and locates the product (single Gemini call)
+    Understands the image in one Gemini call (record + bbox)
   </Card>
   <Card
     title="Crop Service"
     icon="crop"
     href="/services/crop-service"
   >
-    Crops the image to the bbox using local Pillow (no AI call)
+    Crops to the bbox using local Pillow (no AI call)
   </Card>
   <Card
-    title="Search Enrichment"
-    icon="magnifying-glass"
-    href="/services/search-enrichment"
+    title="Embedding Service"
+    icon="vector-square"
+    href="/services/embedding-service"
   >
-    Enriches data with web search and scraping
+    Indexes the product into a multimodal vector for search
   </Card>
 </CardGroup>
 
@@ -42,46 +42,46 @@ Entropi's pipeline consists of **4 core services** that work together to transfo
 
 ```mermaid
 graph TD
-    A[Image Service] --> B[OCR + Bbox Service]
+    A[Image Service] --> B[Vision Service]
     B --> C[Crop Service]
-    C --> D[Search Enrichment]
+    C --> D[Embedding Service]
 
     A --> A1[HEIC → JPEG]
     B --> B1[Gemini 2.5 Flash, single call]
     C --> C1[Pillow, local]
-    D --> D1[Gemini Search + breaker]
+    D --> D1[Voyage multimodal]
 ```
 
 ## Service Dependencies
 
 <AccordionGroup>
   <Accordion title="Image Service">
-    **Dependencies**: None (standalone)  
-    **Input**: Raw image bytes + MIME type  
-    **Output**: Base64-encoded JPEG  
+    **Dependencies**: None (standalone)
+    **Input**: Raw image bytes + MIME type
+    **Output**: Base64-encoded JPEG
     **Library**: Pillow, pillow-heif
   </Accordion>
 
-  <Accordion title="OCR + Bbox Service">
-    **Dependencies**: Image Service output  
-    **Input**: Base64 image  
-    **Output**: Structured product JSON + normalized bbox  
-    **API**: Gemini 2.5 Flash (single call via `extract_and_locate_product`)
+  <Accordion title="Vision Service">
+    **Dependencies**: Image Service output
+    **Input**: Base64 image
+    **Output**: Structured lifestyle record + normalized bbox
+    **API**: Gemini 2.5 Flash (single call via `analyze_capture`)
   </Accordion>
 
   <Accordion title="Crop Service">
-    **Dependencies**: Image Service + bbox from OCR step  
-    **Input**: Base64 image + bbox  
-    **Output**: Cropped base64 image  
+    **Dependencies**: Image Service + bbox from the Vision Service
+    **Input**: Base64 image + bbox
+    **Output**: Cropped base64 image
     **Library**: Pillow (local — no AI call)
   </Accordion>
 
-  <Accordion title="Search Enrichment">
-    **Dependencies**: OCR Service + Crop Service  
-    **Input**: OCR data + cropped image  
-    **Output**: Enriched product data  
-    **API**: Gemini grounded search + Web Scraping  
-    **Resilience**: 15&nbsp;s `asyncio.wait_for` timeout + circuit breaker (3 failures → 60&nbsp;s skip)
+  <Accordion title="Embedding Service">
+    **Dependencies**: The built record + cropped image
+    **Input**: Composed text + image
+    **Output**: 1024-dim multimodal vector
+    **API**: Voyage AI (`voyage-multimodal-3`)
+    **Note**: Best-effort — a failure leaves the product `ready` and unindexed
   </Accordion>
 </AccordionGroup>
 
@@ -104,13 +104,13 @@ All services are:
 ## Service Files
 
 <CodeGroup>
-```python app/services/image_service.py
+```python app/services/vision/image_service.py
 async def prepare_image_for_ocr(file_bytes: bytes, mime_type: str) -> str
 ```
 
-```python app/services/vision/ocr_service.py
-async def extract_and_locate_product(base64_image: str) -> Optional[dict]
-# Returns product fields + "bbox": [ymin, xmin, ymax, xmax] (0-1000, nullable)
+```python app/services/vision/vision_service.py
+async def analyze_capture(base64_image: str) -> Optional[dict]
+# Returns the lifestyle record + "bbox": [ymin, xmin, ymax, xmax] (0-1000, nullable)
 ```
 
 ```python app/services/vision/image_crop_service.py
@@ -121,47 +121,49 @@ async def crop_with_bbox(
 ) -> str
 ```
 
-```python app/services/search/orchestrator.py
-async def enrich_product(ocr_data: dict, cropped_image_base64: Optional[str]) -> Optional[dict]
+```python app/services/embedding/indexing.py
+async def compute_product_embedding(text: str | None, image_base64: str | None) -> list[float]
 ```
 </CodeGroup>
 
 ## Integration Example
 
-Here's how services are used together in the pipeline:
+Here is how the services are used together in the capture pipeline:
 
 ```python
 # Step 1: Image Service
 base64_image = await prepare_image_for_ocr(image_bytes, mime_type)
 
-# Step 2: OCR + bbox (single Gemini call)
-ocr_data = await extract_and_locate_product(base64_image)
+# Step 2: Vision understanding (single Gemini call)
+record = await analyze_capture(base64_image)
+bbox = record.pop("bbox", None)
 
 # Step 3: Local crop (Pillow, no AI call)
-cropped_image = await crop_with_bbox(base64_image, ocr_data["bbox"])
+cropped_image = await crop_with_bbox(base64_image, bbox)
 
-# Step 4: Search Enrichment (15s timeout + circuit breaker upstream)
-enrichment_data = await enrich_product(ocr_data, cropped_image)
+# Step 4: Embedding (best-effort, for semantic search)
+text = build_product_text(record)
+embedding = await compute_product_embedding(text, cropped_image)
 ```
 
 ## Performance Metrics
 
 <CardGroup cols={2}>
   <Card title="Image Service" icon="gauge">
-    **Average**: ~200ms  
+    **Average**: ~200ms
     **Success Rate**: 100%
   </Card>
-  <Card title="OCR + Bbox Service" icon="gauge">
-    **Average**: ~3–4s (single Gemini call)  
+  <Card title="Vision Service" icon="gauge">
+    **Average**: ~3–5s (single Gemini call)
     **Success Rate**: 95%+
   </Card>
   <Card title="Crop Service" icon="gauge">
-    **Average**: &lt;100ms (local Pillow)  
+    **Average**: &lt;100ms (local Pillow)
     **Success Rate**: 99%+ (graceful fallback to original)
   </Card>
-  <Card title="Search Enrichment" icon="gauge">
-    **Average**: ~3–10s (15&nbsp;s hard cap)  
-    **Success Rate**: 70%+ (OCR-only fallback otherwise)
+  <Card title="Embedding Service" icon="gauge">
+    **Average**: ~1–2s (best-effort)
+    **Success Rate**: leaves product `ready` even on failure
   </Card>
 </CardGroup>
 
@@ -169,8 +171,7 @@ enrichment_data = await enrich_product(ocr_data, cropped_image)
 
 Explore each service in detail:
 
-- [Image Service](/services/image-service) - Image conversion and optimization
-- [OCR Service](/services/ocr-service) - Product data extraction
-- [Crop Service](/services/crop-service) - Smart image cropping
-- [Search Enrichment](/services/search-enrichment) - Data enrichment
-
+- [Image Service](/services/image-service) — image conversion and optimization
+- [Vision Service](/services/vision-service) — single-call visual understanding
+- [Crop Service](/services/crop-service) — local bbox crop
+- [Embedding Service](/services/embedding-service) — semantic-search indexing

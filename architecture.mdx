@@ -1,23 +1,23 @@
 ---
 title: Architecture
-description: "Understanding Entropi's pipeline architecture, data flow, and service interactions."
+description: "Understanding Entropi's synchronous capture pipeline, data flow, and service interactions."
 ---
 
 ## Overview
 
-Entropi follows a **pipeline architecture** where each service processes the data sequentially, transforming a raw screenshot into a structured product record.
+Entropi follows a **synchronous pipeline architecture**: each service processes the data sequentially, transforming a raw capture into a structured, search-indexed product record — all within a single HTTP request. There is no background task, no queue, and no polling.
 
 ## Pipeline Flow
 
 ```mermaid
 graph LR
-    A[Screenshot Upload] --> B[Image Service]
-    B --> C[OCR + Bbox Service]
+    A[Image Upload] --> B[Image Service]
+    B --> C[Vision Service]
     C --> D[Local Crop]
-    D --> E[Search Enrichment]
+    D --> E[Embedding]
     E --> F[Database]
-    F --> G[Product JSON]
-    
+    F --> G[Finished Product JSON]
+
     style A fill:#000000,color:#FFFFFF
     style G fill:#000000,color:#FFFFFF
 ```
@@ -26,58 +26,62 @@ graph LR
 
 <Steps>
   <Step title="1. Image Service">
-    **Input**: Raw image bytes (HEIC/JPEG/PNG)  
-    **Output**: Base64-encoded JPEG  
+    **Input**: Raw image bytes (HEIC/JPEG/PNG/WebP)
+    **Output**: Base64-encoded JPEG
     **Purpose**: Convert and optimize images for AI processing
-    
+
     - Converts HEIC → JPEG
-    - Resizes to max 2048x2048px
+    - Resizes to max 2048×2048px
     - Optimizes quality (95% JPEG)
     - Encodes to base64
+
+    Runs before the timeout window so the decoded raw photo is always
+    available for the best-effort `stumped` fallback.
   </Step>
 
-  <Step title="2. OCR + Bbox (single Gemini call)">
-    **Input**: Base64 image  
-    **Output**: Structured product data (JSON) + normalized bbox  
-    **Purpose**: Extract product information AND locate it in one shot
+  <Step title="2. Vision Service (single Gemini call)">
+    **Input**: Base64 image
+    **Output**: Structured lifestyle record (JSON) + normalized bbox
+    **Purpose**: Understand the image in one shot
 
-    - Uses Gemini 2.5 Flash via `extract_and_locate_product()`
-    - Extracts: name, price, currency, description, merchant, category, tags, object_type
-    - Also returns `bbox: [ymin, xmin, ymax, xmax]` (0–1000 normalized, nullable)
-    - Replaces the previous two-call flow (OCR then bbox), saving ~3 seconds
+    - One Gemini 2.5 Flash multimodal call via `analyze_capture()`
+    - Object recognition + text reading + structured JSON + bounding box
+    - Returns `content_type`, `description`, `category`, `object_type`,
+      `colors`, `style_tags`, `setting`, `brand` + `brand_confidence`
+      (only when readable), `raw_text`, `price`, and
+      `bbox: [ymin, xmin, ymax, xmax]` (0–1000 normalized, nullable)
+    - No OCR engine or object detector on the side, no web
   </Step>
 
   <Step title="3. Local Crop">
-    **Input**: Base64 image + bbox from step 2  
-    **Output**: Cropped base64 image  
-    **Purpose**: Focus on the main product
+    **Input**: Base64 image + bbox from step 2
+    **Output**: Cropped base64 image
+    **Purpose**: Focus on the main subject
 
     - Pure local Pillow operation (`crop_with_bbox()`) — no AI call
     - Crops with 20% padding (configurable)
     - Falls back to the original image on any failure (graceful degradation)
   </Step>
 
-  <Step title="4. Search Enrichment">
-    **Input**: OCR data + cropped image  
-    **Output**: Enriched product data  
-    **Purpose**: Find merchant URL and scrape additional data
+  <Step title="4. Embedding (best-effort)">
+    **Input**: Composed record text + cropped image
+    **Output**: A 1024-dim multimodal vector
+    **Purpose**: Index the product for semantic search
 
-    - Gemini searches for product URL
-    - Function calling triggers web scraping
-    - Validates results with confidence scoring
-    - Merges with OCR data
-    - Wrapped in a 15&nbsp;s `asyncio.wait_for` timeout and protected by a circuit breaker (see [Resilience](/services/search-enrichment#resilience))
-    - On timeout, exception, or open breaker: falls back to OCR-only data; product still reaches `ready`
+    - One Voyage multimodal call (`compute_product_embedding()`)
+    - Combines the record's text and the image into a single vector
+    - Best-effort: a failure here leaves the product `ready` with a null
+      embedding, to be picked up later by the retroactive backfill
   </Step>
 
   <Step title="5. Database Storage">
-    **Input**: Merged product data  
-    **Output**: Product record with ID  
-    **Purpose**: Persist product information
-    
-    - Saves to PostgreSQL `products` table
-    - Returns full product object
-    - Supports relationships with lists
+    **Input**: The finished record (+ embedding)
+    **Output**: Product row in its terminal state
+    **Purpose**: Persist the capture
+
+    - Inserts one `products` row already in `ready` (or `stumped`)
+    - Attaches it to the target list
+    - Returns the full product object in the HTTP response
   </Step>
 </Steps>
 
@@ -85,27 +89,27 @@ graph LR
 
 <CardGroup cols={2}>
   <Card title="Image Service" icon="image">
-    **File**: `app/services/image_service.py`  
-    **Dependencies**: Pillow, pillow-heif  
+    **File**: `app/services/vision/image_service.py`
+    **Dependencies**: Pillow, pillow-heif
     **Stateless**: Yes
   </Card>
 
-  <Card title="OCR + Bbox Service" icon="eye">
-    **File**: `app/services/vision/ocr_service.py`  
-    **Dependencies**: Gemini API (Gemini 2.5 Flash), Pillow  
+  <Card title="Vision Service" icon="eye">
+    **File**: `app/services/vision/vision_service.py`
+    **Dependencies**: Gemini API (Gemini 2.5 Flash)
     **Stateless**: Yes
   </Card>
 
   <Card title="Crop Service" icon="crop">
-    **File**: `app/services/vision/image_crop_service.py`  
-    **Dependencies**: Pillow (local only — no AI call)  
+    **File**: `app/services/vision/image_crop_service.py`
+    **Dependencies**: Pillow (local only — no AI call)
     **Stateless**: Yes
   </Card>
 
-  <Card title="Search Enrichment" icon="magnifying-glass">
-    **File**: `app/services/search/`  
-    **Dependencies**: Gemini API, Web Scraping  
-    **Stateless**: Yes — circuit-breaker state is process-local
+  <Card title="Embedding Service" icon="vector-square">
+    **File**: `app/services/embedding/`
+    **Dependencies**: Voyage AI (multimodal embeddings)
+    **Stateless**: Yes
   </Card>
 </CardGroup>
 
@@ -116,52 +120,53 @@ sequenceDiagram
     participant Client
     participant API
     participant ImageService
-    participant OCRService
+    participant VisionService
     participant CropService
-    participant SearchService
+    participant Embedding
     participant Database
 
-    Client->>API: POST /api/v1/pipeline/analyze
+    Client->>API: POST /pipeline/analyze (list_id, file)
     API->>ImageService: prepare_image_for_ocr()
     ImageService-->>API: base64_image
 
-    API->>OCRService: extract_and_locate_product()
-    OCRService-->>API: ocr_data { ...fields, bbox }
+    API->>VisionService: analyze_capture()
+    VisionService-->>API: record { ...fields, bbox }
 
     API->>CropService: crop_with_bbox() (local Pillow)
     CropService-->>API: cropped_image
 
-    API->>SearchService: enrich_product() [15s timeout + circuit breaker]
-    SearchService-->>API: enrichment_data (or OCR-only fallback)
-    
-    API->>Database: Save Product
+    API->>Embedding: compute_product_embedding() [best-effort]
+    Embedding-->>API: vector (or skipped)
+
+    API->>Database: INSERT product (status=ready, +embedding)
     Database-->>API: product_record
-    API-->>Client: Product JSON (201 Created)
+    API-->>Client: Finished Product JSON (201 Created)
 ```
 
 ## Error Handling
 
-Each service implements **graceful degradation**:
+Each service degrades gracefully; only a failure of understanding produces `stumped`:
 
 <AccordionGroup>
-  <Accordion title="Image Service Failures">
-    Returns HTTP 422 if conversion fails. Client must provide valid image format.
+  <Accordion title="Image Service failures">
+    If the image cannot be decoded, the product is persisted as `stumped`
+    with an `error_message`. The response is still `201` — capture never
+    returns a blocking 5xx for a bad image.
   </Accordion>
 
-  <Accordion title="OCR Failures">
-    Returns HTTP 422 if OCR cannot extract product name. Pipeline stops here.
+  <Accordion title="Vision Service failures / timeout">
+    If understanding returns nothing or the 45&nbsp;s cap is hit, the product
+    is persisted as `stumped`, **keeping the raw photo** in `image_url`.
   </Accordion>
 
-  <Accordion title="Crop Failures">
-    Falls back to original image. Pipeline continues with uncropped image.
+  <Accordion title="Crop failures">
+    Falls back to the original image. The pipeline continues; status is
+    still `ready`.
   </Accordion>
 
-  <Accordion title="Search Enrichment Failures">
-    Falls back to OCR-only data. Product is saved with OCR data only.
-    Triggered by: enrichment timeout (>15&nbsp;s), exception, or an open
-    circuit breaker (3 consecutive failures → 60&nbsp;s skip window).
-    Low-confidence results (&lt;90%) are also dropped but do **not** trip
-    the breaker.
+  <Accordion title="Embedding failures">
+    Swallowed. The product stays `ready` with a null embedding and is
+    re-indexed later by the backfill. Search simply excludes unindexed rows.
   </Accordion>
 </AccordionGroup>
 
@@ -169,45 +174,40 @@ Each service implements **graceful degradation**:
 
 <CardGroup cols={3}>
   <Card title="FastAPI" icon="code">
-    Modern Python web framework
+    Modern async Python web framework
   </Card>
-  <Card title="PostgreSQL" icon="database">
-    Relational database
+  <Card title="PostgreSQL + pgvector" icon="database">
+    Relational database with vector search
   </Card>
-  <Card title="SQLAlchemy" icon="database">
+  <Card title="SQLAlchemy (async)" icon="database">
     ORM for database operations
   </Card>
   <Card title="Gemini 2.5 Flash" icon="brain">
-    Unified OCR + bbox extraction
+    Single multimodal understanding call
   </Card>
-  <Card title="Gemini (grounded search)" icon="brain">
-    Merchant URL search & function calling
+  <Card title="Voyage (multimodal-3)" icon="brain">
+    Text + image embeddings for search
   </Card>
   <Card title="Pillow" icon="image">
-    Image processing library
+    Local image processing
   </Card>
 </CardGroup>
 
 ## Performance Considerations
 
-Each pipeline run is sequential (every step consumes the previous step's
-output), but **concurrent submits run in real parallel**. All blocking
-SDK calls (Gemini, Pillow) are wrapped in `asyncio.to_thread`, so N
-simultaneous `/pipeline/analyze` requests no longer serialize on the
-event loop.
+Each pipeline run is sequential (every step consumes the previous step's output), but **concurrent captures run in real parallel**. All blocking SDK calls (Gemini, Voyage) are awaited and the Pillow work is offloaded via `asyncio.to_thread`, so N simultaneous `/pipeline/analyze` requests do not serialize on the event loop. Batch imports fan out concurrently (bounded).
 
-**Typical processing times** (per pipeline run):
+**Typical processing times** (per capture):
 - Image conversion: ~200&nbsp;ms
-- OCR + bbox (single Gemini call): ~3–4&nbsp;s
+- Vision understanding (single Gemini call): ~3–5&nbsp;s
 - Local Pillow crop: &lt;100&nbsp;ms
-- Search enrichment: ~3–10&nbsp;s (hard-capped at 15&nbsp;s; falls back to OCR-only on timeout/breaker)
-- **Total**: ~6–14&nbsp;s end-to-end (down from ~10–18&nbsp;s pre-I032)
+- Embedding: ~1–2&nbsp;s (best-effort)
+- **Total**: ~4–8&nbsp;s end-to-end, hard-capped at 45&nbsp;s
 
 <Tip>
-  For production, consider implementing:
-  - Async task queues (Celery, RQ)
-  - Caching for repeated products
-  - Rate limiting on AI API calls
+  Perceived latency is handled on the client (a splash screen during the
+  request), so the backend stays optimistic, linear, and in-process — no
+  queue, Celery, or Redis.
 </Tip>
 
 ## Next Steps
@@ -215,4 +215,3 @@ event loop.
 - Learn about the [Database Schema](/database)
 - Explore individual [Services](/services/overview)
 - Check the [API Reference](/api-reference/analyze)
-
