@@ -1,0 +1,131 @@
+---
+title: Database Schemas
+description: SQLAlchemy models, tables, important fields, relationships, and startup behavior.
+---
+
+# Database Schemas
+
+The backend uses SQLAlchemy async ORM with PostgreSQL. `app/database.py` converts `postgresql://` URLs to `postgresql+asyncpg://` at runtime.
+
+On application startup, `app/main.py` creates the `vector` extension and runs `Base.metadata.create_all`. Alembic migrations are also present under `alembic/versions`.
+
+## Tables
+
+### `users`
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | integer | Primary key. |
+| `username` | string | Unique, indexed, required. |
+| `email` | string | Unique, indexed, required. |
+| `password_hash` | string | Nullable for OAuth-only users. |
+| `profile_picture` | string | Nullable. |
+| `created_at` | datetime | Server default now. |
+
+Relationships: products, budget, purchases.
+
+### `products`
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | integer | Primary key. |
+| `name` | string | Nullable product title. |
+| `price` | float | Nullable. |
+| `description` | text | Nullable. |
+| `image_url` | text | URL or base64 image. |
+| `currency` | string(3) | Currency code. |
+| `merchant` | text | Store or brand. |
+| `product_url` | text | Source URL. |
+| `category` | string | Nullable. |
+| `tags` | text | Comma-separated tags. |
+| `object_type` | string | Vision object type. |
+| `content_type` | string | Coarse visual bucket. |
+| `brand_confidence` | float | 0-1 confidence. |
+| `raw_text` | text | OCR text. |
+| `status` | enum | `ready`, `stumped`, `purchased`, plus deprecated statuses. |
+| `error_message` | text | Capture failure reason. |
+| `embedding` | vector(1024) | pgvector multimodal embedding. |
+| `user_id` | FK users.id | Product owner. |
+| `created_at` | datetime | Server default now. |
+
+### `lists`
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | integer | Primary key. |
+| `user_id` | FK users.id | Board owner. |
+| `name` | string | Board name. |
+| `share_token` | string | Unique nullable token. |
+| `visibility` | string | `private`, `friends`, or `public`. |
+| `allow_interaction` | boolean | Defaults false. |
+| `view_count` | integer | Defaults 0. |
+| `color` | string(7) | Hex color. |
+| `created_at` | datetime | Server default now. |
+
+### `list_products`
+
+Join table between lists and products.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | integer | Primary key. |
+| `list_id` | FK lists.id | Required. |
+| `product_id` | FK products.id | Required. |
+| `added_at` | datetime | Server default now. |
+
+### `list_permissions`
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | integer | Primary key. |
+| `list_id` | FK lists.id | Cascade delete. |
+| `user_id` | FK users.id | Cascade delete. |
+| `can_add_products` | boolean | Defaults false. |
+| `created_at` | datetime | Server default now. |
+
+Unique constraint: `(list_id, user_id)`.
+
+### `friendships`
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | integer | Primary key. |
+| `requester_id` | FK users.id | Request sender. |
+| `addressee_id` | FK users.id | Request recipient. |
+| `status` | enum | `pending`, `accepted`, `declined`. |
+| `created_at` | datetime | Server default now. |
+| `updated_at` | datetime | Server default and on update. |
+
+Unique constraint: `(requester_id, addressee_id)`.
+
+### `budgets`
+
+One budget per user.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | integer | Primary key. |
+| `user_id` | FK users.id | Unique. |
+| `monthly_limit` | float | Nullable. |
+| `weekly_limit` | float | Nullable. |
+| `currency` | string(3) | Defaults `EUR`. |
+| `created_at` | datetime | Server default now. |
+| `updated_at` | datetime | On update. |
+
+### `purchases`
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | integer | Primary key. |
+| `user_id` | FK users.id | Required. |
+| `product_id` | FK products.id | Required. |
+| `amount` | float | Required. |
+| `currency` | string(3) | Defaults `EUR`. |
+| `purchased_at` | datetime | Server default now. |
+
+### OAuth/session/audit tables
+
+- `oauth_providers`: provider names such as `google`.
+- `oauth_accounts`: user/provider identity link, tokens, expiration.
+- `sessions`: optional session records with IP and status.
+- `auth_logs`: OAuth auth attempt audit rows.

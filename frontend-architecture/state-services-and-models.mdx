@@ -1,0 +1,58 @@
+---
+title: State, Services, and Models
+description: Riverpod providers, GetIt services, Dio client, and model mapping.
+---
+
+# State, Services, and Models
+
+## Providers
+
+| Provider | Type | Purpose |
+| --- | --- | --- |
+| `userProvider` | `AsyncNotifier<User?>` | Current profile. |
+| `boardsNotifierProvider` | `AsyncNotifier<List<Board>>` | Board list and cache updates. |
+| `collectionNotifierProvider` | `Notifier<List<Product>>` | Product feed/cache. |
+| `productSearchNotifierProvider` | `AsyncNotifier<ProductSearchState>` | Debounced search state and pagination. |
+| `friendsNotifierProvider` | `AsyncNotifier<List<FriendWithBoards>>` | Friends cache. |
+| `budgetProvider` | `Notifier<BudgetSummary?>` | Budget summary. |
+| `purchasesProvider` | `Notifier<PurchasesState>` | Purchase pagination. |
+| `localeProvider` | `AsyncNotifier<Locale>` | Current language. |
+| `mainNavigationRequestProvider` | `Notifier<MainNavigationRequest?>` | Cross-screen tab requests. |
+
+## Services
+
+Registered in `setupLocator()`:
+
+- `ApiClient`
+- `AuthService`
+- `FriendService`
+- `CapturePermissionService`
+- `GoogleOAuthService`
+- `LocaleService`
+- `PalmeAdvisorService`
+- `ListService`
+- `PipelineService`
+- `ProductService`
+- `ShareService`
+- `UserService`
+- `BudgetService`
+
+## Dio client behavior
+
+`ApiClient` sets:
+
+- `baseUrl` from `AppConfig.baseUrl`.
+- JSON content type by default.
+- 15 second connect and receive timeouts.
+- `validateStatus: (status) => true`.
+
+Interceptors attach the access token and route genuine expired sessions to `/expired-session`.
+
+## Models
+
+Dart models map backend JSON shapes, including mixed naming where needed. Examples:
+
+- `Product.title` maps from backend `name`.
+- `UserPublic.friendshipStatus` accepts `friendshipStatus` or `friendship_status`.
+- `Board.previewImageUrls` maps from `preview_image_urls`.
+- `ListSettings.ownerId` accepts `owner_id`, `ownerId`, or `user_id` when supplied.

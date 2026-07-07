@@ -1,0 +1,55 @@
+---
+title: Secure Storage and State Reference
+description: Device cache keys, provider state, and state invalidation behavior.
+---
+
+# Secure Storage and State Reference
+
+## Secure storage
+
+| Key | Values | Owner |
+| --- | --- | --- |
+| `access_token` | JWT string | `AuthService`, `ApiClient` |
+| `selected_locale` | `en` or `fr` | `LocaleService` |
+
+## In-memory auth state
+
+`AuthService` holds:
+
+- `_accessToken`
+- `_errorCode`
+- `_lastRestoreFoundExpiredSession`
+
+`ApiClient` holds:
+
+- `_accessToken`
+- `_isHandlingExpiredSession`
+- `_suppressExpiredSessionRedirect`
+
+## Search state
+
+`ProductSearchState` contains:
+
+- `query`
+- `products`
+- `isSearching`
+- `isLoadingMore`
+- `hasMore`
+- `transientError`
+
+## Capture state
+
+`UploadTab` contains:
+
+- `_cameraController`
+- `_cameraPermissionStatus`
+- `_showPhotoPermissionGate`
+- `_isCameraInitializing`
+- `_isImageLoading`
+- `_linkController`
+- `_linkError`
+- `_isSubmittingLink`
+
+## Logout invalidation
+
+Manual logout clears auth, routes to welcome, and invalidates app providers to avoid leaking previous user cache into the next session.

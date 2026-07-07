@@ -1,0 +1,46 @@
+---
+title: Testing and Quality
+description: Required validation commands for mobile and backend changes.
+---
+
+# Testing and Quality
+
+## Mobile checks
+
+Run from `mobile-palme`:
+
+```bash
+dart format lib/ test/
+flutter analyze
+flutter test
+```
+
+Existing tests cover email validation, login/signup navigation, board parsing, product reference parsing, and public user friendship status parsing.
+
+## Backend checks
+
+Run from `core-palme` after setting up a virtual environment:
+
+```bash
+PYTHONPATH=. pytest
+```
+
+The backend test suite covers auth, products, search, lists, budget, users, sharing, pipeline, advisor, and URL import behavior.
+
+## Documentation checks
+
+Run Mintlify locally from `docs`:
+
+```bash
+mintlify dev
+```
+
+If the CLI is not installed, install it according to Mintlify's current instructions.
+
+## Definition of done
+
+- Frontend uses existing providers/services/widgets.
+- Backend keeps routers thin and business logic in services.
+- New backend DB changes include Alembic migrations.
+- Analyzer and tests pass.
+- API or behavior changes are reflected in these docs.

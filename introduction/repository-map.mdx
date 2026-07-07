@@ -1,0 +1,49 @@
+---
+title: Repository Map
+description: Where to find the important files in mobile-palme, core-palme, and docs.
+---
+
+# Repository Map
+
+```text
+entropi/
+  mobile-palme/     Flutter mobile app
+  core-palme/       FastAPI backend
+  docs/             Mintlify documentation
+```
+
+## Mobile directories
+
+```text
+mobile-palme/lib/config/        Runtime config and share links
+mobile-palme/lib/core/          Localization and design system
+mobile-palme/lib/models/        Dart data models
+mobile-palme/lib/providers/     Riverpod state providers
+mobile-palme/lib/screens/       Screens and tab views
+mobile-palme/lib/services/      API, OAuth, locale, permission services
+mobile-palme/lib/widgets/       Reusable UI widgets and skeletons
+mobile-palme/lib/utils/         Product reference parser and image helpers
+```
+
+## Backend directories
+
+```text
+core-palme/app/core/        Settings, security, LLM clients, prompts
+core-palme/app/models/      SQLAlchemy ORM models
+core-palme/app/routers/     FastAPI route handlers
+core-palme/app/schemas/     Pydantic request/response schemas
+core-palme/app/services/    Business logic and integrations
+core-palme/alembic/         Migrations
+core-palme/tests/           Pytest suite
+```
+
+## Documentation directories
+
+```text
+docs/introduction/
+docs/getting-started/
+docs/backend-api/
+docs/frontend-architecture/
+docs/deployment/
+docs/reference/
+```

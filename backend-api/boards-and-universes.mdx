@@ -1,0 +1,216 @@
+---
+title: Boards and Universes
+description: List endpoints, board settings, permissions, sharing, and visitor access.
+---
+
+# Boards and Universes
+
+The mobile UI calls boards universes. The backend stores them in the `lists` table and exposes them through `/lists` and `/boards`.
+
+## List boards
+
+```http
+GET /lists/
+```
+
+Response:
+
+```json
+[
+  {
+    "id": 5,
+    "name": "Deco appart",
+    "user_id": 1,
+    "visibility": "private",
+    "allow_interaction": false,
+    "share_token": null,
+    "view_count": 0,
+    "color": "#FFFFFF",
+    "is_shared": false,
+    "preview_image_urls": [],
+    "created_at": "2026-07-07T10:00:00Z"
+  }
+]
+```
+
+## Create board
+
+```http
+POST /lists/
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{ "name": "Idee cadeau Noel" }
+```
+
+Response is `ListRead`.
+
+## Read board products
+
+```http
+GET /lists/{list_id}/products
+```
+
+Access rules:
+
+- Owner can read.
+- If non-owner and `visibility == private`, returns `403`.
+- If non-owner and `visibility == friends`, requires a list permission.
+- Public boards are visible through share/friend flows.
+
+## Add product to board
+
+Create association from request body:
+
+```http
+POST /lists/{list_id}/products
+Content-Type: application/json
+```
+
+```json
+{
+  "list_id": 5,
+  "product_id": 18
+}
+```
+
+Add existing product by path:
+
+```http
+POST /lists/{list_id}/products/{product_id}
+```
+
+The path variant requires owner access to both board and product.
+
+## Remove product from board
+
+```http
+DELETE /lists/{list_id}/products/{product_id}
+```
+
+Owner only. Returns `204 No Content`.
+
+## Board settings
+
+```http
+GET /lists/{list_id}/settings
+PATCH /lists/{list_id}/settings
+```
+
+Settings response:
+
+```json
+{
+  "id": 5,
+  "name": "Deco appart",
+  "visibility": "public",
+  "allow_interaction": false,
+  "share_token": "abc",
+  "share_url": "https://app.entropi.io/boards/abc",
+  "view_count": 8,
+  "color": "#FFFFFF",
+  "permissions": [
+    {
+      "user_id": 2,
+      "username": "alex_friend",
+      "can_add_products": false
+    }
+  ]
+}
+```
+
+Update request:
+
+```json
+{
+  "name": "Trouvail appartements",
+  "visibility": "public",
+  "allow_interaction": false
+}
+```
+
+The mobile visibility page labels this as Friends Only in the UI but persists `public` when required by product behavior.
+
+## Permissions
+
+```http
+POST /lists/{list_id}/permissions
+DELETE /lists/{list_id}/permissions/{user_id}
+GET /lists/{list_id}/permissions
+```
+
+Create permission body:
+
+```json
+{ "user_id": 2 }
+```
+
+## Shared/friend board details
+
+```http
+GET /lists/{list_id}/shared
+```
+
+Response:
+
+```json
+{
+  "list": {
+    "id": 5,
+    "name": "Deco appart",
+    "owner_username": "alexis",
+    "visibility": "public",
+    "view_count": 8
+  },
+  "products": [],
+  "can_add_products": false
+}
+```
+
+## Share links
+
+```http
+POST /lists/{list_id}/share
+DELETE /lists/{list_id}/share
+GET /lists/{list_id}/stats
+```
+
+`POST /lists/{list_id}/share` generates a token, sets visibility to `public`, and returns:
+
+```json
+{
+  "share_token": "abc",
+  "share_url": "entropi://boards/share/abc"
+}
+```
+
+## Board patch route
+
+```http
+PATCH /boards/{board_id}
+```
+
+Request fields:
+
+```json
+{
+  "name": "New board name",
+  "visibility": "public",
+  "allow_interaction": false,
+  "color": "#0E6BFF"
+}
+```
+
+`color` must be a hex value like `#FF5733`.
+
+## Public shared board routes
+
+```http
+GET /boards/shared/{share_token}
+GET /shared/{share_token}
+```
+
+Both require the board to exist and have `visibility == public`.

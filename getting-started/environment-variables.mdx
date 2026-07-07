@@ -1,0 +1,54 @@
+---
+title: Environment Variables
+description: Required and optional configuration for backend and mobile builds.
+---
+
+# Environment Variables
+
+## Backend required variables
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `DATABASE_URL` | Yes | SQLAlchemy database URL. `postgresql://` is converted to `postgresql+asyncpg://` at runtime. |
+| `SECRET_KEY` | Yes | JWT signing secret. |
+
+## Backend optional variables
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `APP_ENV` | `development` | Set `production` to disable FastAPI docs and use global 500 masking. |
+| `ALGORITHM` | `HS256` | JWT algorithm. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | Access token lifetime. |
+| `RATE_LIMIT_LOGIN` | `5/minute` | SlowAPI login rate limit. |
+| `RATE_LIMIT_REGISTER` | `3/minute` | SlowAPI signup rate limit. |
+| `GOOGLE_CLIENT_ID` | unset | Web Google OAuth client id for browser OAuth. |
+| `GOOGLE_CLIENT_SECRET` | unset | Web Google OAuth client secret. |
+| `GOOGLE_REDIRECT_URI` | unset | OAuth redirect URI. |
+| `GOOGLE_ANDROID_CLIENT_ID` | unset | Android OAuth client id for mobile token verification. |
+| `GOOGLE_IOS_CLIENT_ID` | unset | iOS OAuth client id for mobile token verification. |
+| `GOOGLE_WEB_CLIENT_ID` | unset | Web/server client id for mobile token verification. |
+| `DISCORD_WEBHOOK_URL` | unset | Destination for feedback submissions. |
+
+## Mobile build variables
+
+| Define | Description |
+| --- | --- |
+| `API_BASE_URL` | Overrides `AppConfig.baseUrl`. |
+
+Example:
+
+```bash
+flutter run --dart-define=API_BASE_URL=https://core-palme-production.up.railway.app
+```
+
+## Android signing variables
+
+Release signing is read from `android/key.properties` or environment variables:
+
+```bash
+PALME_RELEASE_STORE_FILE=/absolute/path/to/palme-release.jks
+PALME_RELEASE_STORE_PASSWORD=...
+PALME_RELEASE_KEY_ALIAS=...
+PALME_RELEASE_KEY_PASSWORD=...
+PALME_STRICT_RELEASE_SIGNING=true
+```

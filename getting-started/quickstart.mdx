@@ -1,95 +1,70 @@
 ---
 title: Quickstart
-description: "Register, log in, capture a product, and search your library. Five minutes, no assumptions."
+description: Run the backend and mobile app locally.
 ---
 
-This page assumes Entropi is running locally on `http://localhost:8000`. If it is not, follow the [Self-Hosting installation guide](/self-hosting/installation) first.
+# Quickstart
 
-You will need `curl` and `jq`.
+## Prerequisites
 
-<Steps>
-  <Step title="Register a user">
-    ```bash
-    curl -s -X POST http://localhost:8000/auth/register \
-      -H "Content-Type: application/json" \
-      -d '{
-        "username": "you",
-        "email": "you@example.com",
-        "password": "a-strong-password"
-      }'
-    ```
+- Flutter SDK matching Dart `^3.10.1`.
+- Android Studio or Xcode for device builds.
+- Python 3.10 for the backend.
+- PostgreSQL with pgvector, or the provided Docker Compose database.
 
-    A `201 Created` response confirms the user exists.
-  </Step>
+## 1. Install mobile dependencies
 
-  <Step title="Log in and store the token">
-    ```bash
-    TOKEN=$(curl -s -X POST http://localhost:8000/auth/login \
-      -H "Content-Type: application/json" \
-      -d '{"username":"you@example.com","password":"a-strong-password"}' \
-      | jq -r .access_token)
-    ```
+```bash
+cd mobile-palme
+flutter pub get
+```
 
-    The token is a JWT. It expires after 7 days by default.
-  </Step>
+## 2. Configure backend environment
 
-  <Step title="Create a list">
-    Every product belongs to a list (a board, a wishlist, a project — whatever the client calls it).
+Create a `.env` file in `core-palme` with at least:
 
-    ```bash
-    LIST_ID=$(curl -s -X POST http://localhost:8000/lists/ \
-      -H "Authorization: Bearer $TOKEN" \
-      -H "Content-Type: application/json" \
-      -d '{"name":"Quickstart"}' \
-      | jq -r .id)
-    ```
-  </Step>
+```bash
+DATABASE_URL=postgresql://atrex:atrex04@localhost:5432/entropi_mvp
+SECRET_KEY=replace-with-a-long-random-secret
+APP_ENV=development
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+```
 
-  <Step title="Capture a product">
-    ```bash
-    curl -s -X POST http://localhost:8000/pipeline/analyze \
-      -H "Authorization: Bearer $TOKEN" \
-      -F "list_id=$LIST_ID" \
-      -F "file=@capture.jpg" | jq
-    ```
+## 3. Start backend services
 
-    This is **synchronous**: the call runs the whole pipeline and returns the
-    finished product (typically within a few seconds, capped at 45&nbsp;s).
-    The response `status` is `ready` — or `stumped` if understanding failed,
-    in which case the raw photo is still saved. No polling.
-  </Step>
+With Docker Compose:
 
-  <Step title="Search your library">
-    ```bash
-    curl -s -G "http://localhost:8000/products/search" \
-      -H "Authorization: Bearer $TOKEN" \
-      --data-urlencode "q=cozy green jacket" | jq
-    ```
+```bash
+cd core-palme
+docker compose up --build
+```
 
-    Free-text semantic search over your own products, ranked by relevance.
-    It matches on what the photo shows, not just stored words.
-  </Step>
-</Steps>
+Or run FastAPI directly after installing requirements:
 
-## What you just did
+```bash
+cd core-palme
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
 
-You exercised the full Entropi flow: authentication, list creation, synchronous capture, and semantic search.
+## 4. Run mobile app
 
-`POST /pipeline/analyze` runs image prep, visual understanding (one Gemini call), crop, and embedding **in the request**, then returns the finished product. There is nothing to poll — the record is complete when you get the response.
+Android emulator:
 
-## Next steps
+```bash
+cd mobile-palme
+flutter run -d emulator-5554
+```
 
-<CardGroup cols={2}>
-  <Card title="Core Concepts" icon="book" href="/getting-started/core-concepts">
-    The mental models behind the synchronous pipeline and the capture record.
-  </Card>
-  <Card title="Analyze API" icon="code" href="/api-reference/analyze">
-    Full reference for `POST /pipeline/analyze`.
-  </Card>
-  <Card title="Search API" icon="magnifying-glass" href="/api-reference/search">
-    Full reference for `GET /products/search`.
-  </Card>
-  <Card title="Failure modes" icon="triangle-exclamation" href="/guides/handle-failures">
-    What `stumped` actually means and how to recover.
-  </Card>
-</CardGroup>
+iOS simulator or physical device:
+
+```bash
+flutter run -d <DEVICE_ID> --dart-define=API_BASE_URL=http://localhost:8000
+```
+
+Physical iOS release devices should use an HTTPS backend URL:
+
+```bash
+flutter run --release -d <DEVICE_ID> --dart-define=API_BASE_URL=https://core-palme-production.up.railway.app
+```

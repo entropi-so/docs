@@ -1,0 +1,45 @@
+---
+title: Product Map
+description: The primary Palme user workflows across the mobile and backend systems.
+---
+
+# Product Map
+
+## Authentication
+
+Users can sign up or log in with email/password. Google Sign-In uses native Google authentication in the Flutter client and then exchanges the Google ID token with `POST /auth/google/mobile`.
+
+## Capture and ingestion
+
+Palme supports multiple ingestion paths:
+
+- Camera capture through the `Capture` tab.
+- Gallery import through native photo permissions and `image_picker`.
+- Link import through `POST /products/scrape`.
+- Backend synchronous image analysis through `POST /pipeline/analyze`.
+- Batch image analysis through `POST /pipeline/analyze/batch`.
+
+## Universes
+
+Universes are boards stored as `lists` in the backend. A board owns products through `list_products`. Boards can be private or public, carry a share token, and expose permissions to friends through `list_permissions`.
+
+## Search
+
+Search uses `/products/search` and combines lexical matching with semantic vector search. The mobile client debounces input, cancels stale requests, and keeps the previous gallery until a new request finishes.
+
+## Friends
+
+Friendship state is represented as backend enum values and frontend UI states:
+
+- `NONE`
+- `SENT_PENDING`
+- `RECEIVED_PENDING`
+- `FRIENDS`
+
+## Ask
+
+The Ask view sends chat turns to `/api/palme-advisor/chat`. The backend streams server-sent events. The client renders Markdown and extracts product references matching `(ID \d+)`.
+
+## Budget
+
+The budget domain tracks a per-user budget row and purchase rows. Marking a product purchased creates a `Purchase` and updates budget summaries.

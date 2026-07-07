@@ -1,0 +1,116 @@
+---
+title: Authentication
+description: Email/password auth, native Google mobile auth, cookies, and JWT responses.
+---
+
+# Authentication
+
+## Signup
+
+```http
+POST /auth/signup
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{
+  "email": "alexis@example.com",
+  "username": "alexis",
+  "password": "secret-password"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "id": 1,
+  "email": "alexis@example.com",
+  "username": "alexis",
+  "profile_picture": null,
+  "created_at": "2026-07-07T10:00:00Z"
+}
+```
+
+Conflict:
+
+```json
+{ "detail": "Email already registered" }
+```
+
+## Login
+
+```http
+POST /auth/login
+Content-Type: application/json
+```
+
+Request body uses `username` for the email/identifier field expected by backend auth:
+
+```json
+{
+  "username": "alexis@example.com",
+  "password": "secret-password"
+}
+```
+
+Response:
+
+```json
+{
+  "access_token": "<jwt>",
+  "token_type": "bearer"
+}
+```
+
+The backend also sets an `access_token` HTTP-only cookie. The mobile app stores the response token in secure storage and sends it as a Bearer token.
+
+## Logout
+
+```http
+POST /auth/logout
+```
+
+Response:
+
+```json
+{ "message": "Logout successful" }
+```
+
+The mobile app clears local secure storage and provider caches after this call.
+
+## Google mobile auth
+
+```http
+POST /auth/google/mobile
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{
+  "id_token": "<google-id-token>"
+}
+```
+
+Response:
+
+```json
+{
+  "access_token": "<palme-jwt>",
+  "token_type": "bearer"
+}
+```
+
+The backend validates the Google ID token against configured Android, iOS, and web client IDs, creates or links the OAuth user, and returns a normal Palme JWT.
+
+## Browser Google OAuth routes
+
+- `GET /auth/google/login` redirects to Google.
+- `GET /auth/google/callback` exchanges code for tokens and redirects to a frontend callback.
+- `POST /auth/google/verify` verifies a posted ID token against `GOOGLE_CLIENT_ID`.
+
+The Flutter app uses `/auth/google/mobile`, not the browser callback path.

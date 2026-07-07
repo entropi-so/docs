@@ -1,0 +1,79 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "Palme Docs",
+  "theme": "mint",
+  "colors": {
+    "primary": "#0E6BFF",
+    "light": "#FFFFFF",
+    "dark": "#000000"
+  },
+  "favicon": "/favicon.svg",
+  "logo": {
+    "light": "/logo/light.png",
+    "dark": "/logo/dark.png"
+  },
+  "navigation": [
+    {
+      "group": "Introduction",
+      "pages": [
+        "introduction/overview",
+        "introduction/product-map",
+        "introduction/repository-map"
+      ]
+    },
+    {
+      "group": "Getting Started",
+      "pages": [
+        "getting-started/quickstart",
+        "getting-started/local-development",
+        "getting-started/environment-variables",
+        "getting-started/dependencies"
+      ]
+    },
+    {
+      "group": "Backend API",
+      "pages": [
+        "backend-api/overview",
+        "backend-api/authentication",
+        "backend-api/users-and-friends",
+        "backend-api/boards-and-universes",
+        "backend-api/products-and-search",
+        "backend-api/ingestion-and-uploads",
+        "backend-api/budget-feedback-advisor",
+        "backend-api/database-schemas"
+      ]
+    },
+    {
+      "group": "Frontend Architecture",
+      "pages": [
+        "frontend-architecture/overview",
+        "frontend-architecture/app-lifecycle-and-caching",
+        "frontend-architecture/navigation-and-routing",
+        "frontend-architecture/state-services-and-models",
+        "frontend-architecture/authentication-and-oauth",
+        "frontend-architecture/home-search-and-ask",
+        "frontend-architecture/capture-workflow",
+        "frontend-architecture/universes-and-permissions",
+        "frontend-architecture/i18n-and-design-system"
+      ]
+    },
+    {
+      "group": "Deployment",
+      "pages": [
+        "deployment/backend-deployment",
+        "deployment/android-release-signing",
+        "deployment/ios-local-provisioning",
+        "deployment/testing-and-quality"
+      ]
+    },
+    {
+      "group": "Reference",
+      "pages": [
+        "reference/secure-storage-and-state",
+        "reference/permissions-matrix",
+        "reference/troubleshooting",
+        "reference/glossary"
+      ]
+    }
+  ]
+}

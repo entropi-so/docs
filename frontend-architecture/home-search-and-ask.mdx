@@ -1,0 +1,57 @@
+---
+title: Home, Search, and Ask
+description: Product feed, search intro/results behavior, Ask assistant streaming, Markdown, and product preview parsing.
+---
+
+# Home, Search, and Ask
+
+## Home / collection
+
+`CollectionScreen` renders the saved product feed. It uses `collectionNotifierProvider`, product cards, empty states, and pull-to-refresh. Product cards navigate to `ProductDetailScreen`.
+
+## Search
+
+`SearchTab` uses a bottom search field and a guidance page when no query is typed.
+
+Search state is managed by `ProductSearchNotifier`:
+
+- Minimum query length: `1`.
+- Debounce: `250 ms`.
+- Page size: `20`.
+- Uses Dio `CancelToken` to cancel stale requests.
+- Keeps previous products while a new search is in-flight.
+- Shows transient errors without clearing the current gallery.
+
+## Ask assistant
+
+`AskMemoriesView` streams from `PalmeAdvisorService.chat()`. The service posts to `/api/palme-advisor/chat` and parses server-sent events.
+
+## Markdown rendering
+
+Assistant messages are rendered with `flutter_markdown` through `MarkdownBody`. Links are opened with `url_launcher`.
+
+## Product ID parsing
+
+The assistant may include markers like:
+
+```text
+New Balance 540 (ID 18)
+```
+
+The frontend parser in `lib/utils/product_reference_parser.dart` uses:
+
+```dart
+RegExp(r'\(ID\s+(\d+)\)')
+```
+
+Behavior:
+
+1. Extract all IDs.
+2. Remove markers from visible text.
+3. Normalize spaces and punctuation.
+4. Dedupe IDs.
+5. Fetch products with `ProductService.getProductsByIds()`.
+6. Render preview cards below the message.
+7. Tap preview cards to open product details.
+
+The parser can also hide a trailing partial marker while streaming.

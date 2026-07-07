@@ -1,0 +1,42 @@
+---
+title: Navigation and Routing
+description: Static routes, bottom navigation, deep links, and cross-screen navigation requests.
+---
+
+# Navigation and Routing
+
+## Static routes
+
+Registered in `lib/main.dart`:
+
+| Route | Screen |
+| --- | --- |
+| `/` | `SplashScreen` |
+| `/onboarding` | `OnboardingScreen` |
+| `/welcome` | `WelcomeScreen` |
+| `/main` | `MainScreen` |
+| `/login` | `LoginScreen` |
+| `/expired-session` | `ExpiredSessionScreen` |
+
+## Bottom navigation
+
+`AppBottomNavBar` is shared across main tabs and some nested flows. It uses icon/text items and preserves the blue selected state.
+
+`mainNavigationRequestProvider` lets nested screens request a main tab navigation after popping back to `/main`.
+
+## Deep links
+
+The app listens with `app_links` for:
+
+```text
+mobile_palme://boards/share/<token>
+entropi://boards/share/<token>
+```
+
+If the user has a restored session, the app pushes `SharedBoardScreen`. If not, it stores `PendingShareManager.pendingShareToken` and routes to `/login`.
+
+## Board navigation
+
+- Owned boards open `BoardScreen(isOwner: true, ownerId: board.userId)`.
+- Friend/public boards open `BoardScreen(isOwner: false)`.
+- Product details opened from visitor boards pass `canManage: false`.

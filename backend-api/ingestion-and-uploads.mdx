@@ -1,0 +1,126 @@
+---
+title: Ingestion and Uploads
+description: Camera/gallery capture pipeline, batch uploads, URL import, limits, and response semantics.
+---
+
+# Ingestion and Uploads
+
+## Single capture analysis
+
+```http
+POST /pipeline/analyze
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+```
+
+Form fields:
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `list_id` | integer | Yes | Board/list id owned by caller. |
+| `file` | file | Yes | HEIC, JPEG, PNG, or WEBP. Max 10 MB. |
+
+Example:
+
+```bash
+curl -X POST "$API_BASE_URL/pipeline/analyze" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "list_id=5" \
+  -F "file=@capture.jpg"
+```
+
+Response `201` is a finished product. There is no polling.
+
+```json
+{
+  "id": 18,
+  "name": "Captured item",
+  "status": "ready",
+  "image_url": "data:image/jpeg;base64,...",
+  "currency": "EUR",
+  "board_ids": [5],
+  "created_at": "2026-07-07T10:00:00Z"
+}
+```
+
+If visual understanding fails, the endpoint still persists a product with:
+
+```json
+{
+  "status": "stumped",
+  "error_message": "Capture failed: ..."
+}
+```
+
+## Pipeline behavior
+
+The synchronous pipeline does:
+
+1. Reads and validates upload size.
+2. Converts/prepares image for OCR.
+3. Sends a single visual understanding request.
+4. Crops the detected product locally.
+5. Builds normalized product fields.
+6. Computes a multimodal embedding best-effort.
+7. Persists a terminal `ready` or `stumped` product.
+
+Hard limits:
+
+- Max file size: 10 MB.
+- Capture timeout: 45 seconds.
+- Batch size: 20 files.
+- Batch concurrency: 5 concurrent image workers.
+- Brand confidence minimum: 0.5.
+
+## Batch capture analysis
+
+```http
+POST /pipeline/analyze/batch
+Content-Type: multipart/form-data
+```
+
+Form fields:
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `list_id` | integer | Yes | Board/list id owned by caller. |
+| `files` | file[] | Yes | Up to 20 images. |
+
+Response:
+
+```json
+{
+  "products": [
+    {
+      "id": 18,
+      "name": "Lamp",
+      "status": "ready",
+      "created_at": "2026-07-07T10:00:00Z",
+      "board_ids": [5]
+    }
+  ],
+  "errors": [
+    {
+      "filename": "too-large.jpg",
+      "reason": "file too large (>10MB)"
+    }
+  ]
+}
+```
+
+Invalid files do not fail the full batch; they appear in `errors`.
+
+## URL ingestion
+
+Use product scraping for link import:
+
+```http
+POST /products/scrape
+Content-Type: application/json
+```
+
+```json
+{ "url": "https://shop.example.com/product/123" }
+```
+
+The mobile Capture link sheet calls this route through `ProductService.scrapeProductFromUrl`.

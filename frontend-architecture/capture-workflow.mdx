@@ -1,0 +1,72 @@
+---
+title: Capture Workflow
+description: Native permission gates, live camera overlay, gallery import, link import, and backend ingestion.
+---
+
+# Capture Workflow
+
+The Capture tab is implemented in `lib/screens/tabs/upload_tab.dart`.
+
+## Permission gates
+
+`CapturePermissionService` wraps `permission_handler` and exposes:
+
+- `cameraStatus()`
+- `requestCamera()`
+- `photosStatus()`
+- `requestPhotos()`
+- `allowsAccess()`
+
+Denied or restricted permissions remain on the access explanation screen. Permanently denied or restricted states open native app settings.
+
+## Camera lifecycle
+
+`UploadTab` is a `ConsumerStatefulWidget` with `WidgetsBindingObserver`. It checks camera access on startup and resumes preview when the app returns to foreground.
+
+Important state:
+
+- `_cameraController`
+- `_cameraPermissionStatus`
+- `_showPhotoPermissionGate`
+- `_isCameraInitializing`
+- `_isImageLoading`
+
+## Live overlay constraints
+
+`_CameraCaptureView` renders a full-screen stack:
+
+- Camera preview uses `FittedBox` and `BoxFit.cover`.
+- Close button top-left.
+- `Palme` centered at top.
+- White center capture frame with `widthFactor: 0.66` and `heightFactor: 0.38`.
+- Shutter button bottom-center.
+- Upload Link action bottom-left.
+- Gallery shortcut bottom-right.
+
+The capture frame keeps rounded corners through `AppSpacing.radiusLg`.
+
+## Capture submission
+
+`_captureImage()` takes a picture, writes a file, and calls `_uploadImageFile()`.
+
+`_uploadImageFile()` fetches boards, chooses the first board, and sends the image through:
+
+```dart
+PipelineService.analyzeProduct(imageFile, listId)
+```
+
+The service posts multipart data to `/pipeline/analyze` and returns a `Product`.
+
+## Gallery import
+
+The gallery path checks photo permission and then uses `ImagePicker.pickImage(source: ImageSource.gallery)`. The selected image is sent through the same pipeline.
+
+## Link import
+
+The bottom sheet collects a URL and calls:
+
+```dart
+ProductService.scrapeProductFromUrl(url)
+```
+
+That posts to `/products/scrape` and inserts the returned product into local collection state.

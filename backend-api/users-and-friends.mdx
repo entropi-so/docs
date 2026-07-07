@@ -1,0 +1,148 @@
+---
+title: Users and Friends
+description: Profile endpoints, user search, friendship statuses, and friend request flows.
+---
+
+# Users and Friends
+
+All endpoints in this page require `Authorization: Bearer <token>`.
+
+## Current user
+
+```http
+GET /users/me
+```
+
+Response:
+
+```json
+{
+  "id": 1,
+  "email": "alexis@example.com",
+  "username": "alexis",
+  "profile_picture": null,
+  "created_at": "2026-07-07T10:00:00Z"
+}
+```
+
+## Update profile
+
+| Method | Path | Body |
+| --- | --- | --- |
+| `PUT` | `/users/me/email` | `{ "email": "new@example.com" }` |
+| `PUT` | `/users/me/username` | `{ "username": "new-name" }` |
+| `PUT` | `/users/me/password` | `{ "password": "new-password" }` |
+| `PUT` | `/users/me/profile-picture` | `{ "profile_picture": "base64-or-url" }` |
+
+## Search users
+
+```http
+GET /users/search?q=alex&skip=0&limit=20
+```
+
+Response:
+
+```json
+[
+  {
+    "id": 2,
+    "username": "alex_friend",
+    "profile_picture": null,
+    "friendshipStatus": "NONE"
+  }
+]
+```
+
+`friendshipStatus` can be:
+
+- `NONE`
+- `SENT_PENDING`
+- `RECEIVED_PENDING`
+- `FRIENDS`
+
+## Send friend request
+
+```http
+POST /friends/request/{user_id}
+```
+
+Response:
+
+```json
+{
+  "id": 10,
+  "requester_id": 1,
+  "addressee_id": 2,
+  "status": "pending",
+  "created_at": "2026-07-07T10:00:00Z"
+}
+```
+
+## Accept or decline
+
+```http
+POST /friends/accept/{friendship_id}
+POST /friends/decline/{friendship_id}
+```
+
+The current user must be the addressee.
+
+## Incoming requests
+
+```http
+GET /friends/requests
+```
+
+Response:
+
+```json
+[
+  {
+    "id": 10,
+    "requester_id": 2,
+    "requester_username": "alex_friend"
+  }
+]
+```
+
+## Friends list
+
+```http
+GET /friends/
+```
+
+Response includes the friend profile and visible boards:
+
+```json
+[
+  {
+    "friendship_id": 10,
+    "friend": {
+      "id": 2,
+      "username": "alex_friend",
+      "profile_picture": null
+    },
+    "public_boards": [
+      {
+        "id": 5,
+        "name": "Deco appart",
+        "user_id": 2,
+        "visibility": "public",
+        "allow_interaction": false,
+        "share_token": null,
+        "view_count": 0,
+        "color": "#FFFFFF",
+        "created_at": "2026-07-07T10:00:00Z"
+      }
+    ]
+  }
+]
+```
+
+## Remove friend
+
+```http
+DELETE /friends/{friendship_id}
+```
+
+Returns `204 No Content`.

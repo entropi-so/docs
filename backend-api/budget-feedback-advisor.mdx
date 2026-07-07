@@ -1,0 +1,107 @@
+---
+title: Budget, Feedback, and Advisor
+description: Budget endpoints, feedback forwarding, and streaming AI chat.
+---
+
+# Budget, Feedback, and Advisor
+
+## Budget
+
+All budget routes require a Bearer token.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/budget/` | Fetch current user's budget. |
+| `POST` | `/budget/` | Create budget. |
+| `PATCH` | `/budget/` | Update budget. |
+| `DELETE` | `/budget/` | Delete budget. |
+| `GET` | `/budget/summary` | Spending summary. |
+| `GET` | `/budget/purchases?skip=0&limit=20` | Purchase history. |
+
+Create/update body:
+
+```json
+{
+  "monthly_limit": 1000.0,
+  "weekly_limit": 250.0,
+  "currency": "EUR"
+}
+```
+
+Summary response:
+
+```json
+{
+  "budget": {
+    "id": 1,
+    "user_id": 1,
+    "monthly_limit": 1000.0,
+    "weekly_limit": 250.0,
+    "currency": "EUR",
+    "created_at": "2026-07-07T10:00:00Z",
+    "updated_at": null
+  },
+  "total_spent_this_month": 120.0,
+  "total_spent_this_week": 80.0,
+  "total_spent_all_time": 420.0,
+  "monthly_remaining": 880.0,
+  "weekly_remaining": 170.0,
+  "is_over_monthly_budget": false,
+  "is_over_weekly_budget": false,
+  "purchases_count": 3
+}
+```
+
+## Feedback
+
+```http
+POST /feedback/
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{
+  "type": "Bug",
+  "message": "The capture screen failed to open",
+  "context": "iOS release build"
+}
+```
+
+The backend forwards feedback to Discord using `DISCORD_WEBHOOK_URL`.
+
+## Palme Advisor
+
+```http
+POST /api/palme-advisor/chat
+Accept: text/event-stream
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{
+  "message": "Find the green shoes I saved",
+  "history": [
+    { "role": "user", "content": "Show me shoes" },
+    { "role": "assistant", "content": "I found a few." }
+  ]
+}
+```
+
+Response is a stream of SSE events:
+
+```text
+event: token
+data: {"content":"I found"}
+
+event: recommendation
+data: {"content":"New Balance 540 (ID 18)","product_ids":[18]}
+
+event: done
+data: {"message":"complete"}
+```
+
+The mobile client consumes event types `token`, `recommendation`, `done`, and `error`. Product markers are parsed client-side into product preview cards.

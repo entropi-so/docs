@@ -1,0 +1,55 @@
+---
+title: Overview
+description: What Palme is, what it contains, and how the mobile and backend systems fit together.
+---
+
+# Palme
+
+Palme is a mobile product memory app. Users capture or import products, organize them into boards called universes, search their saved items, collaborate with friends, track budget impact, and ask an AI assistant questions about their saved products.
+
+The platform is split into two codebases:
+
+- `mobile-palme`: Flutter mobile client.
+- `core-palme`: FastAPI backend with PostgreSQL, pgvector, JWT auth, Google OAuth, product ingestion, semantic search, and AI advisor services.
+
+## System diagram
+
+```mermaid
+graph TD
+    Mobile[Flutter mobile app] -->|HTTPS + Bearer JWT| API[FastAPI backend]
+    API --> DB[(PostgreSQL + pgvector)]
+    API --> Vision[Vision and crop services]
+    API --> Embeddings[Voyage embeddings]
+    API --> Advisor[Palme Advisor LLM orchestration]
+    Mobile --> SecureStorage[FlutterSecureStorage]
+    Mobile --> Native[Camera, photos, Google Sign-In, share sheet]
+```
+
+## Product capabilities
+
+- Email/password signup and login.
+- Native Google Sign-In on mobile.
+- Secure token persistence and expired-session routing.
+- Product capture from camera, gallery, screenshots, and URLs.
+- Hybrid lexical and semantic product search.
+- Universes/boards with ownership, visibility, permissions, and public sharing.
+- Friends, friend requests, and public board discovery.
+- Budget limits, purchases, and monthly/weekly summaries.
+- AI Ask assistant with Markdown responses and product `(ID 18)` references rendered as preview cards.
+- French and English localization with persisted language selection.
+
+## Production URL
+
+The production backend domain referenced by the project is:
+
+```text
+https://core-palme-production.up.railway.app
+```
+
+Some Railway/runtime setups expose the container on port `8080`; when a direct port URL is required, use:
+
+```text
+https://core-palme-production.up.railway.app:8080
+```
+
+The mobile app currently defaults to the no-port HTTPS URL in release builds unless `API_BASE_URL` is supplied with `--dart-define`.

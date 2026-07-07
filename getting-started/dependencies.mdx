@@ -1,0 +1,36 @@
+---
+title: Dependencies
+description: Libraries and external services used by Palme.
+---
+
+# Dependencies
+
+## Mobile dependencies
+
+| Package | Purpose |
+| --- | --- |
+| `flutter_riverpod` | State management. |
+| `get_it` | Dependency injection. |
+| `dio` | API networking. |
+| `flutter_secure_storage` | Secure token and locale persistence. |
+| `google_sign_in` | Native Google OAuth. |
+| `camera` | Camera preview and capture. |
+| `permission_handler` | Camera/photos permission prompts. |
+| `image_picker` | Gallery import. |
+| `app_links` | Deep links. |
+| `share_plus` | Native share sheet. |
+| `flutter_markdown` | AI response Markdown rendering. |
+| `shimmer` | Skeleton loaders. |
+| `loading_animation_widget` | Pull-to-refresh loading visuals. |
+
+## Backend dependencies
+
+The backend uses FastAPI, SQLAlchemy async, Alembic, PostgreSQL, pgvector, SlowAPI, Google auth libraries, HTTPX, and service-specific LLM/embedding clients. See `core-palme/requirements.txt` for exact Python dependencies.
+
+## External services
+
+- Google OAuth.
+- PostgreSQL with pgvector.
+- Voyage embeddings for semantic search.
+- Gemini/Groq depending on configured LLM service.
+- Discord webhook for feedback.

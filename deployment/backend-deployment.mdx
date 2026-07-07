@@ -1,0 +1,71 @@
+---
+title: Backend Deployment
+description: Backend production configuration, Docker, PostgreSQL, pgvector, and Railway notes.
+---
+
+# Backend Deployment
+
+## Runtime
+
+The backend Dockerfile runs:
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+```
+
+On Railway, set `PORT=8080` if the platform expects the app to bind to 8080.
+
+Production domain used by the mobile app:
+
+```text
+https://core-palme-production.up.railway.app
+```
+
+Direct port form when required:
+
+```text
+https://core-palme-production.up.railway.app:8080
+```
+
+## Required environment
+
+```bash
+DATABASE_URL=postgresql://...
+SECRET_KEY=...
+APP_ENV=production
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+```
+
+## Optional environment
+
+```bash
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_REDIRECT_URI=...
+GOOGLE_ANDROID_CLIENT_ID=...
+GOOGLE_IOS_CLIENT_ID=...
+GOOGLE_WEB_CLIENT_ID=...
+DISCORD_WEBHOOK_URL=...
+```
+
+Additional LLM and embedding variables may be required by the configured vision, advisor, and Voyage services. Check `app/core/llm_settings.py` and embedding service configuration before deploying AI/capture features.
+
+## Database
+
+Use PostgreSQL with pgvector. On startup the app runs:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+Alembic config exists, but the app also calls `Base.metadata.create_all` on startup. For controlled production changes, run migrations intentionally.
+
+## CORS
+
+Configured origins are currently:
+
+- `http://localhost:3000`
+- `http://localhost:8000`
+
+Mobile app API calls are not browser-CORS constrained, but web/admin clients are.

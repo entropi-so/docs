@@ -1,0 +1,169 @@
+---
+title: Products and Search
+description: Product creation, scraping, search, detail fetches, price updates, and purchase status.
+---
+
+# Products and Search
+
+## Product shape
+
+A product response contains:
+
+```json
+{
+  "id": 18,
+  "name": "New Balance 540",
+  "price": 120.0,
+  "description": "Running shoes",
+  "image_url": "https://example.com/image.png",
+  "currency": "EUR",
+  "merchant": "New Balance",
+  "product_url": "https://example.com/product",
+  "category": "Sneakers",
+  "tags": "green, sporty",
+  "object_type": "shoes",
+  "status": "ready",
+  "content_type": null,
+  "brand_confidence": null,
+  "raw_text": null,
+  "error_message": null,
+  "created_at": "2026-07-07T10:00:00Z",
+  "board_ids": [5]
+}
+```
+
+Product statuses are:
+
+- `ready`
+- `stumped`
+- `purchased`
+
+Deprecated but still accepted in the database enum:
+
+- `peeking`
+- `framing`
+- `sleuthing`
+
+## Create product manually
+
+```http
+POST /products/
+```
+
+Request:
+
+```json
+{
+  "name": "Lamp",
+  "price": 45.0,
+  "currency": "EUR",
+  "merchant": "Kartell",
+  "category": "Table"
+}
+```
+
+## List my products
+
+```http
+GET /products/?skip=0&limit=20
+```
+
+Products are scoped to the authenticated user.
+
+## Fetch one product
+
+```http
+GET /products/{product_id}
+```
+
+Returns `404` if the product does not exist or does not belong to the caller.
+
+## Update product
+
+```http
+PATCH /products/{product_id}
+```
+
+Request supports partial fields:
+
+```json
+{
+  "price": 99.99,
+  "currency": "EUR"
+}
+```
+
+If price or currency changes, related purchase rows for that user are updated.
+
+## Scrape/import URL
+
+```http
+POST /products/scrape
+```
+
+Request:
+
+```json
+{ "url": "https://shop.example.com/product/123" }
+```
+
+The URL must start with `http://` or `https://`. The backend scrapes product fields, creates a ready product, and best-effort embeds it for search.
+
+## Hybrid search
+
+```http
+GET /products/search?q=canape%20velours%20vert&limit=20&offset=0
+```
+
+Search combines:
+
+- Lexical `ILIKE` on name, description, tags, category, and object type.
+- Query embedding compared with product multimodal embeddings.
+
+Response items include `relevance`:
+
+```json
+[
+  {
+    "id": 18,
+    "name": "Green sofa",
+    "price": 320.0,
+    "currency": "EUR",
+    "status": "ready",
+    "created_at": "2026-07-07T10:00:00Z",
+    "board_ids": [],
+    "relevance": 0.82
+  }
+]
+```
+
+Status codes:
+
+- `200`: results, possibly empty.
+- `422`: empty query or pagination validation failure.
+- `503`: semantic search unavailable because embeddings are not configured.
+
+## Purchase status
+
+Mark purchased:
+
+```http
+POST /products/{product_id}/purchase
+```
+
+Cancel purchase:
+
+```http
+DELETE /products/{product_id}/purchase
+```
+
+Marking purchased creates a `Purchase` row. Cancelling removes the latest matching purchase row and sets product status back to `ready`.
+
+## Upload image placeholder
+
+```http
+POST /products/upload-image
+Content-Type: multipart/form-data
+```
+
+This endpoint accepts a file and returns metadata. Full capture analysis uses `/pipeline/analyze`.

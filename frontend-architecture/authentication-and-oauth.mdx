@@ -1,0 +1,53 @@
+---
+title: Authentication and OAuth
+description: Login/signup sheets, token storage, Google Sign-In, and session expiry.
+---
+
+# Authentication and OAuth
+
+## Login and signup UI
+
+Login and signup are modal bottom sheets, not standalone pages. They preserve the current background view with a dimmed overlay and can be dismissed by close button, backdrop, or drag.
+
+Main files:
+
+- `screens/welcome_screen.dart`
+- `screens/login_screen.dart`
+- `screens/signup_screen.dart`
+
+## Email auth
+
+`AuthService.login()` posts to `/auth/login`.
+
+`AuthService.signup()` posts to `/auth/signup`.
+
+On success, returned `access_token` is persisted to secure storage.
+
+## Google Sign-In
+
+`GoogleOAuthService` uses `google_sign_in` with:
+
+```dart
+scopes: ['email', 'profile']
+serverClientId: '<web-client-id>'
+```
+
+Mobile flow:
+
+1. Native Google Sign-In opens.
+2. Flutter gets `GoogleSignInAuthentication.idToken`.
+3. App posts ID token to `/auth/google/mobile`.
+4. Backend returns Palme JWT.
+5. `AuthService.saveToken()` persists the session.
+
+## Apple OAuth
+
+Apple OAuth buttons are styled as unavailable/disabled because Apple auth is not implemented yet.
+
+## Legal links
+
+Signup and settings use:
+
+- CGU: `https://www.palme-labs.com/cgu`
+- Privacy: `https://www.palme-labs.com/confidentialite`
+- Legal notice: `https://www.palme-labs.com/mentions-legales`

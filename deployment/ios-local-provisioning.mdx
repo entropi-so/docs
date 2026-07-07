@@ -1,0 +1,59 @@
+---
+title: iOS Local Provisioning
+description: Build and run iOS release builds with Xcode and a personal developer account.
+---
+
+# iOS Local Provisioning
+
+## Requirements
+
+- macOS with Xcode installed.
+- Apple ID added in Xcode settings.
+- iPhone connected and trusted.
+- Flutter iOS toolchain passing `flutter doctor`.
+
+## Bundle identifier
+
+Current iOS bundle id is configured in Xcode project settings as:
+
+```text
+com.example.mobile_palme
+```
+
+Change it to a unique production id before App Store/TestFlight distribution.
+
+## Local personal account workflow
+
+1. Open `ios/Runner.xcworkspace` in Xcode.
+2. Select the `Runner` target.
+3. Go to `Signing & Capabilities`.
+4. Select your personal team.
+5. Enable automatic signing.
+6. Connect the device and select it as the run target.
+7. Build once from Xcode to trust provisioning.
+
+## Flutter release run
+
+Use an HTTPS backend URL:
+
+```bash
+flutter run --release -d <DEVICE_ID> --dart-define=API_BASE_URL=https://core-palme-production.up.railway.app
+```
+
+If your backend is exposed on the explicit Railway port:
+
+```bash
+flutter run --release -d <DEVICE_ID> --dart-define=API_BASE_URL=https://core-palme-production.up.railway.app:8080
+```
+
+## Permissions
+
+`ios/Runner/Info.plist` includes:
+
+- `NSCameraUsageDescription`
+- `NSPhotoLibraryUsageDescription`
+- `CFBundleURLTypes` for the `mobile_palme` scheme
+
+## Google Sign-In
+
+Make sure the iOS client id is configured in Google Cloud for the bundle id and that any required URL scheme setup matches the selected Google Sign-In configuration.

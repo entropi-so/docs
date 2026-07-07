@@ -1,0 +1,65 @@
+---
+title: Universes and Permissions
+description: Board list, creation flow, details page, visibility settings, and owner/visitor UI logic.
+---
+
+# Universes and Permissions
+
+Universes are boards backed by `/lists` endpoints.
+
+## Boards tab
+
+`BoardsTab` watches `boardsNotifierProvider` and renders:
+
+- Header with Palme and avatar.
+- `New universe +` action.
+- Stacked deck cards.
+- Empty universe state.
+- Skeleton grid.
+
+## Create universe
+
+`CreateUniverseScreen` creates a board with `ListService.createList(name)` and then refreshes/syncs `boardsNotifierProvider`. Success uses `assets/Confetti.gif`.
+
+## Board details
+
+`BoardScreen` loads products and settings separately. It renders:
+
+- Palme header and avatar.
+- Large synthesis deck.
+- Title row with collaborator avatars.
+- Item count pill.
+- Owner-only invite/settings actions.
+- Product grid.
+
+## Visibility settings
+
+`BoardVisibilityAccessScreen` uses `/lists/{id}/settings`. It supports two UI choices:
+
+- Friends Only, persisted as `public` when selected.
+- Private, persisted as `private`.
+
+The screen shows a per-option loading indicator while saving.
+
+## Owner detection
+
+Board management uses:
+
+```dart
+if (!widget.isOwner) return false;
+final ownerId = widget.ownerId ?? _settings?.ownerId;
+return user?.id == ownerId;
+```
+
+When owner metadata is unavailable for owned boards, the app defaults to manageable. Friend/public board entry points pass `isOwner: false`.
+
+## Product detail read-only mode
+
+`BoardScreen` passes `canManage` into `ProductDetailScreen`. When false, product details hide:
+
+- Price edit button.
+- Mark as bought button.
+- Cancel purchase button.
+- Add to board action.
+
+The informational content and source/split-price actions can still render when applicable.

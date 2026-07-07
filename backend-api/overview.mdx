@@ -1,0 +1,59 @@
+---
+title: Backend API Overview
+description: Authentication, headers, status conventions, and all active route groups.
+---
+
+# Backend API Overview
+
+Base URL in production:
+
+```text
+https://core-palme-production.up.railway.app
+```
+
+Direct port URL when required by the runtime:
+
+```text
+https://core-palme-production.up.railway.app:8080
+```
+
+## Authentication
+
+Authenticated endpoints require:
+
+```http
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+Multipart endpoints use `multipart/form-data` and still require the Bearer token.
+
+## Active router groups
+
+| Prefix | Router | Purpose |
+| --- | --- | --- |
+| `/auth` | `auth.py` | Email/password auth and logout. |
+| `/auth/google` | `oauth.py` | Google OAuth and mobile ID token auth. |
+| `/users` | `users.py` | Current user profile and user search. |
+| `/friends` | `friends.py` | Friend requests, acceptance, list, removal. |
+| `/lists` | `lists.py` | Universes, products in boards, permissions, sharing. |
+| `/boards` | `boards.py` | Shared board access and board color/name patching. |
+| `/shared` | `shared.py` | Public shared board by token. |
+| `/products` | `products.py` | Product CRUD, scraping, search, purchases. |
+| `/pipeline` | `pipeline.py` | Synchronous image capture analysis. |
+| `/budget` | `budget.py` | Budgets, summaries, purchases. |
+| `/api/palme-advisor` | `palme_advisor.py` | Streaming AI assistant. |
+| `/feedback` | `feedback.py` | Feedback to Discord. |
+
+## Common errors
+
+| Code | Meaning |
+| --- | --- |
+| `400` | Invalid input or unsupported operation. |
+| `401` | Missing or invalid JWT. |
+| `403` | Authenticated but not authorized for the resource. |
+| `404` | Resource not found, or intentionally hidden by ownership. |
+| `409` | Duplicate resource or conflict. |
+| `413` | Upload exceeds 10 MB limit. |
+| `422` | Validation failed. |
+| `500` | Internal server error. In production, the global handler masks details. |

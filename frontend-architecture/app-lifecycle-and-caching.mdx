@@ -1,0 +1,69 @@
+---
+title: App Lifecycle and Caching
+description: Secure token persistence, language initialization, session expiry, provider cache invalidation, and refresh behavior.
+---
+
+# App Lifecycle and Caching
+
+## Secure storage keys
+
+| Key | Owner | Purpose |
+| --- | --- | --- |
+| `access_token` | `AuthService` and `ApiClient` | Persisted JWT access token. |
+| `selected_locale` | `LocaleService` | Persisted language code, `en` or `fr`. |
+
+## Startup flow
+
+`SplashScreen` calls `AuthService.restoreSession()` and enforces a minimum splash duration.
+
+Flow:
+
+```mermaid
+flowchart TD
+    Splash[SplashScreen] --> Restore[AuthService.restoreSession]
+    Restore --> Token{Stored token?}
+    Token -->|No| Welcome[/welcome]
+    Token -->|Yes| Expired{JWT expired?}
+    Expired -->|Yes| ExpiredScreen[/expired-session]
+    Expired -->|No| Main[/main]
+```
+
+## Token handling
+
+`AuthService.saveToken()` stores the token in memory, sets it on `ApiClient`, and writes it to secure storage.
+
+`ApiClient` attaches the header on requests:
+
+```http
+Authorization: Bearer <access_token>
+```
+
+If a non-auth endpoint returns `401`, `ApiClient` deletes the token and routes to `/expired-session`. Manual logout temporarily suppresses this redirect so the user goes directly to the welcome screen.
+
+## Locale initialization
+
+`LocaleNotifier.build()` calls:
+
+```dart
+LocaleService.loadLocale(PlatformDispatcher.instance.locale)
+```
+
+If `selected_locale` is present and supported, it wins. Otherwise the app resolves the system locale to `en` or `fr`, falling back to French.
+
+## Cache invalidation on logout
+
+`SettingsScreen._clearSessionCache()` invalidates:
+
+- `userProvider`
+- `boardsNotifierProvider`
+- `collectionNotifierProvider`
+- `friendsNotifierProvider`
+- `budgetProvider`
+- `purchasesProvider`
+- `mainNavigationRequestProvider`
+
+It also clears Flutter image caches.
+
+## Pull refresh
+
+The app uses `AppRefreshIndicator`. Many screens call provider or local refresh methods. Product search keeps the previous gallery while a new request is loading so the UI does not flash a no-result state prematurely.

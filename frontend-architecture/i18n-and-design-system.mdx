@@ -1,0 +1,69 @@
+---
+title: i18n and Design System
+description: Translation files, language persistence, theme tokens, skeletons, and shared widgets.
+---
+
+# i18n and Design System
+
+## Localization
+
+Supported languages:
+
+- English: `en`
+- French: `fr`
+
+Files:
+
+```text
+assets/i18n/en.json
+assets/i18n/fr.json
+```
+
+Use translations with:
+
+```dart
+context.t('settings.language')
+```
+
+Dynamic placeholders are replaced with `{key}` matching:
+
+```dart
+context.t('budget.remaining', {'amount': '120 EUR'})
+```
+
+## Language switching
+
+The settings screen exposes a language selector. `LocaleNotifier.setLocale()` updates UI immediately and persists the code to secure storage key `selected_locale`.
+
+## Design tokens
+
+Core theme files:
+
+- `AppColors`
+- `AppSpacing`
+- `AppTextStyles`
+- `AppTheme`
+
+Important radii:
+
+- Small image/card radius: `AppSpacing.radiusMd` (`12`)
+- Large images/buttons: `AppSpacing.radiusLg` and `radiusXl` (`20`)
+
+## Skeletons
+
+Skeleton loaders live in `lib/widgets/skeleton`. They use discreet gradients and match final layout geometry to avoid layout shifts.
+
+## Shared components
+
+Common components include:
+
+- `AppButton`
+- `AppButtonOutlined`
+- `AppTextField`
+- `AppAvatar`
+- `AppBottomNavBar`
+- `AppRefreshIndicator`
+- `AppEmptyState`
+- `ProductCard`
+- `BoardCard`
+- `OverlappingImagesWidget`

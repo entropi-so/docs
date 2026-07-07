@@ -1,0 +1,79 @@
+---
+title: Android Release Signing
+description: Keystore creation, key.properties, strict signing, and release build commands.
+---
+
+# Android Release Signing
+
+Android release signing is configured in `android/app/build.gradle.kts`.
+
+## Create a keystore
+
+```bash
+keytool -genkey -v \
+  -keystore palme-release.jks \
+  -keyalg RSA \
+  -keysize 2048 \
+  -validity 10000 \
+  -alias palme
+```
+
+Move the keystore outside git or into a secure ignored path.
+
+## Configure key.properties
+
+Create `android/key.properties`:
+
+```properties
+storeFile=/absolute/path/to/palme-release.jks
+storePassword=your-store-password
+keyAlias=palme
+keyPassword=your-key-password
+```
+
+Do not commit `key.properties` or `.jks` files.
+
+## Environment variable alternative
+
+```bash
+export PALME_RELEASE_STORE_FILE=/absolute/path/to/palme-release.jks
+export PALME_RELEASE_STORE_PASSWORD=...
+export PALME_RELEASE_KEY_ALIAS=palme
+export PALME_RELEASE_KEY_PASSWORD=...
+```
+
+## Strict signing
+
+By default, missing release signing falls back to debug signing with a warning. Enforce failure with:
+
+```bash
+export PALME_STRICT_RELEASE_SIGNING=true
+```
+
+## Build
+
+APK:
+
+```bash
+flutter build apk --release --dart-define=API_BASE_URL=https://core-palme-production.up.railway.app
+```
+
+App bundle:
+
+```bash
+flutter build appbundle --release --dart-define=API_BASE_URL=https://core-palme-production.up.railway.app
+```
+
+## Google Sign-In fingerprint
+
+Get the release certificate fingerprint:
+
+```bash
+keytool -keystore /absolute/path/to/palme-release.jks -list -v
+```
+
+Register the SHA-1/SHA-256 values in Google Cloud for package id:
+
+```text
+com.example.mobile_palme
+```

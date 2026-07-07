@@ -1,0 +1,45 @@
+---
+title: Permissions Matrix
+description: Owner vs visitor behavior in board and product detail views.
+---
+
+# Permissions Matrix
+
+## Board details
+
+| UI element or action | Owner | Visitor |
+| --- | --- | --- |
+| Board settings button | Visible | Hidden |
+| Invite/access button | Visible | Hidden |
+| Item count pill | Visible | Visible |
+| Collaborator avatars | Visible | Visible |
+| Product grid | Visible | Visible |
+| Swipe-to-delete product | Enabled | Disabled |
+| Pull refresh | Enabled | Enabled |
+
+## Product details from board
+
+| UI element or action | Owner context | Visitor context |
+| --- | --- | --- |
+| Product image/title/details | Visible | Visible |
+| Price edit button | Visible | Hidden |
+| Mark as bought | Visible | Hidden |
+| Cancel purchase | Visible | Hidden |
+| Add to board | Visible | Hidden |
+| Split price | Visible when price > 0 | Visible when price > 0 |
+| View source | Visible | Visible |
+
+## Ownership logic
+
+Frontend board ownership uses:
+
+- Explicit `BoardScreen.isOwner`.
+- Optional `ownerId` passed from board list entries.
+- Optional `ListSettings.ownerId` when returned by the backend.
+- Current user id from `userProvider`.
+
+Friend board entry points pass `isOwner: false` immediately.
+
+## Backend ownership rules
+
+The backend derives ownership from JWT-authenticated `current_user`, never from client-provided owner ids. Owner-only operations compare list/product `user_id` with `current_user.id`.

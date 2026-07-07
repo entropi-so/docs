@@ -1,0 +1,50 @@
+---
+title: Troubleshooting
+description: Common build, auth, backend, and runtime issues.
+---
+
+# Troubleshooting
+
+## iOS release build cannot reach backend
+
+Use an HTTPS backend URL with `--dart-define`:
+
+```bash
+flutter run --release -d <DEVICE_ID> --dart-define=API_BASE_URL=https://core-palme-production.up.railway.app
+```
+
+If your deployment requires explicit port 8080:
+
+```bash
+flutter run --release -d <DEVICE_ID> --dart-define=API_BASE_URL=https://core-palme-production.up.railway.app:8080
+```
+
+## Google Sign-In `PlatformException(sign_in_failed)`
+
+Check:
+
+- Android `applicationId`: `com.example.mobile_palme`.
+- Debug/release SHA fingerprints in Google Cloud.
+- Web client id is used as `serverClientId`.
+- Backend `GOOGLE_ANDROID_CLIENT_ID`, `GOOGLE_IOS_CLIENT_ID`, and `GOOGLE_WEB_CLIENT_ID`.
+- `/auth/google/mobile` accepts the posted ID token.
+
+## Release signing error: missing `storeFile`
+
+Create `android/key.properties` or set `PALME_RELEASE_*` variables. Use `PALME_STRICT_RELEASE_SIGNING=true` to fail instead of falling back to debug signing.
+
+## Expired session appears after manual logout
+
+Manual logout should suppress expired-session redirects. Inspect:
+
+- `ApiClient.suppressExpiredSessionRedirect()`
+- `AuthService.suppressExpiredSessionRedirect()`
+- `SettingsScreen._handleLogout()`
+
+## Camera or gallery permission loops
+
+If permission is permanently denied or restricted, the app opens native settings. The gate remains until the OS reports granted or limited access.
+
+## Search shows stale data
+
+This is intentional during in-flight search. The UI keeps the previous gallery until the new request resolves to avoid flashing an incorrect no-result state.

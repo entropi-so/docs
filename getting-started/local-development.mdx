@@ -1,0 +1,52 @@
+---
+title: Local Development
+description: Common commands and local architecture expectations.
+---
+
+# Local Development
+
+## Backend
+
+The backend starts from `core-palme/app/main.py`. On startup it:
+
+1. Creates the PostgreSQL `vector` extension.
+2. Runs `Base.metadata.create_all`.
+3. Opens a test DB session.
+4. Reaps stale in-flight products.
+5. Starts a periodic stale-product reaper every 300 seconds.
+
+Local backend command:
+
+```bash
+cd core-palme
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+## Mobile
+
+The mobile app starts in `lib/main.dart` and registers dependencies in `lib/locator.dart`.
+
+Run commands:
+
+```bash
+flutter run
+flutter run -d chrome
+flutter run -d emulator-5554
+```
+
+## Local backend URL behavior
+
+The mobile app resolves `AppConfig.baseUrl` as follows:
+
+| Runtime | Default base URL |
+| --- | --- |
+| Release | `https://core-palme-production.up.railway.app` |
+| Android debug | `http://10.0.2.2:8000` |
+| Web debug | `http://localhost:8000` |
+| Other debug | `http://localhost:8000` |
+
+Override it with:
+
+```bash
+flutter run --dart-define=API_BASE_URL=https://your-backend.example.com
+```

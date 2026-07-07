@@ -1,0 +1,44 @@
+---
+title: Frontend Overview
+description: Flutter architecture, primary screens, tabs, services, and shared widgets.
+---
+
+# Frontend Overview
+
+The mobile app lives in `mobile-palme` and uses Flutter with Riverpod state, GetIt service injection, Dio networking, and a small design system.
+
+## Startup
+
+`lib/main.dart` does the following:
+
+1. Initializes Flutter bindings.
+2. Installs a guard for a known duplicate hardware keyboard assertion.
+3. Calls `setupLocator()`.
+4. Starts `ProviderScope`.
+5. Initializes deep link listeners.
+6. Watches `localeProvider` before building `MaterialApp`.
+
+## Core shell
+
+`MainScreen` owns a five-tab `TabController` and an `AppBottomNavBar`:
+
+| Index | Screen | File |
+| --- | --- | --- |
+| 0 | Home/product collection | `screens/collection_screen.dart` |
+| 1 | Capture | `screens/tabs/upload_tab.dart` |
+| 2 | Universes | `screens/tabs/boards_tab.dart` |
+| 3 | Search | `screens/tabs/search_tab.dart` |
+| 4 | Budget | `screens/budget_screen.dart` |
+
+## Service layer
+
+All services are registered in `lib/locator.dart`. API services use `ApiClient`, which wraps Dio and attaches Bearer tokens from secure storage.
+
+## UI layer
+
+Screens and widgets should use:
+
+- `AppColors` for color.
+- `AppSpacing` for spacing and radii.
+- `AppTextStyles` for typography.
+- Existing widgets such as `AppButton`, `AppTextField`, `AppAvatar`, `AppEmptyState`, and skeletons.
